@@ -1,0 +1,35 @@
+import glob
+import json
+import numpy as np
+import os
+import scipy
+import torch
+
+from torch_geometric.utils.convert import from_scipy_sparse_matrix
+
+directory = '/Users/kevinmicha/Documents/PhD/GCN-Bf/'
+input_folder = '/Users/kevinmicha/Documents/all_structures/adjacencies_sparse/'
+pdb_codes = np.load(directory+'pdb_codes.npy')
+ei_list = []
+ea_list = []
+inv_laplacian_list = []
+X = torch.load('gcn_inputs.pt')
+Y = torch.load('b_factors.pt')
+
+
+for i, pdb in enumerate(pdb_codes):
+    #print(pdb)
+    y_base = np.diag(np.linalg.pinv(scipy.sparse.load_npz(input_folder+pdb+'.npz').toarray()))
+    y_base = (y_base - y_base.mean()) / y_base.std()
+    inv_laplacian = torch.tensor(y_base, dtype=torch.float)
+    edge_index, edge_attr = from_scipy_sparse_matrix(scipy.sparse.load_npz(input_folder+pdb+'.npz'))
+    edge_attr = torch.tensor(edge_attr, dtype=torch.float) 
+    if edge_index.shape[-1] != edge_attr.shape[0] or X[i].shape[0] != Y[i].shape[0] or X[i].shape[0] != inv_laplacian.shape[0]:
+        print('Error')
+        print(pdb)
+        print(X[i].shape[0])
+        print(scipy.sparse.load_npz(input_folder+pdb+'.npz').toarray().shape[0])
+    inv_laplacian_list.append(inv_laplacian)
+    ei_list.append(edge_index)
+    ea_list.append(edge_attr)
+torch.save({'edge_index': ei_list, 'edge_attr': ea_list, 'inv_laplacian': inv_laplacian_list}, 'edge_data.pt')
