@@ -3,6 +3,7 @@ import numpy as np
 import os
 import scipy
 import torch
+import re
 
 amino_acids = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLU', 'GLN', 'GLY', 'HIS', 'ILE',
                      'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL']
@@ -40,6 +41,7 @@ def generate_one_hot_matrix(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
         valid_lines = [line for line in lines if line.startswith('ASG')]
+        #valid_lines = [line for line in valid_lines if int(''.join(filter(str.isdigit, line.split()[3])))<=107]
         #X = np.zeros((len(valid_lines), len(amino_acids)+len(secondary_structure)), dtype=np.float32)
         X = np.zeros((len(valid_lines), len(amino_acids)), dtype=np.float32)
         for i, line in enumerate(valid_lines):
@@ -51,6 +53,7 @@ input_folder = directory + 'strides_outputs/'
 output_folder = directory + 'gcn_inputs/'
 pdb_codes = np.load(directory+'pdb_codes.npy')
 X_list = []
+print(len(pdb_codes))
 
 for pdb in pdb_codes:
     X = generate_one_hot_matrix(input_folder+pdb+'.txt')
