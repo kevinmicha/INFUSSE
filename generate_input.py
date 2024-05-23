@@ -5,8 +5,7 @@ import scipy
 import torch
 import re
 
-amino_acids = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLU', 'GLN', 'GLY', 'HIS', 'ILE',
-                     'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL']
+amino_acids = [' ', 'ASP', 'GLY', 'SEC', 'LEU', 'ASN', 'THR', 'LYS', 'HIS', 'TYR', 'TRP', 'CYS', 'PRO', 'VAL', 'SER', 'PYL', 'ILE', 'GLU', 'PHE', 'XAA', 'GLN', 'ALA', 'ASX', 'GLX', 'ARG', 'MET']
 
 secondary_structure = ['310Helix', 'AlphaHelix', 'Bridge', 'Coil', 'Strand', 'Turn']
 
@@ -21,7 +20,7 @@ def encode_line(line):
 
     split_line = line.split()
     aa = split_line[aa_pos] 
-    ss = split_line[ss_pos]
+    #ss = split_line[ss_pos]
 
     #one_hot = np.zeros(len(amino_acids)+len(secondary_structure))
     one_hot = np.zeros(len(amino_acids))

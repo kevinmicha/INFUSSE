@@ -56,7 +56,8 @@ def save_distance_matrix(distance_matrix, output_file):
 
 folder = '/Users/kevinmicha/Documents/all_structures/chothia_unbound'
 folder_2 = '/Users/kevinmicha/Documents/all_structures/chothia_ext'
-file_list = sorted([file for file in glob.glob(os.path.join(folder, '*stripped.pdb')) if '_H' not in file]+[file for file in glob.glob(os.path.join(folder_2, '*stripped.pdb')) if '_H' not in file])
+folder_3 = '/Users/kevinmicha/Documents/all_structures/chothia_ext_ext'
+file_list = sorted([file for file in glob.glob(os.path.join(folder, '*stripped.pdb')) if '_H' not in file]+[file for file in glob.glob(os.path.join(folder_2, '*stripped.pdb')) if '_H' not in file]+[file for file in glob.glob(os.path.join(folder_3, '*stripped.pdb')) if '_H' not in file])
 threshold = 10.0
 
 for file in file_list:
