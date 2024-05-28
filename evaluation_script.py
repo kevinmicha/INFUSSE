@@ -20,9 +20,10 @@ from torch_geometric.data import Data
 from scipy import sparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--graphs', type=str, default='gnm')
 parser.add_argument('--hidden_channels', type=int, default=256)
-parser.add_argument('--lr', type=float, default=5e-3)
-parser.add_argument('--epochs', type=int, default=3000)
+parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--epochs', type=int, default=500)
 args = parser.parse_args()
 
 if torch.cuda.is_available():
@@ -32,10 +33,10 @@ else:
 
 class GCNBfDataset(Dataset):
     def __init__(self, edge_indices, edge_attributes, X, Y, pdb=None, Y_base=None):
-        self.edge_indices = edge_indices
-        self.edge_attributes = edge_attributes
-        self.X = X
-        self.Y = Y
+        self.edge_indices = [edge_index.to(device) for edge_index in edge_indices]
+        self.edge_attributes = [edge_attr.to(device) for edge_attr in edge_attributes]
+        self.X = [x.to(device) for x in X]
+        self.Y = [y.to(device) for y in Y]
         self.pdb = pdb
         self.num_features = X[0].shape[1]
         self.out_channels = 1
@@ -51,31 +52,46 @@ class GCNBfDataset(Dataset):
         Y = self.Y[idx]
         if self.pdb is not None:
             pdb = self.pdb[idx]
+        else:
+            pdb = None
     
-        return Data(x=X, edge_index=edge_index, y=Y, edge_attr=edge_attr)
+        return Data(x=X, edge_index=edge_index, y=Y, edge_attr=edge_attr, pdb=pdb)
 
-# Edge data (test set)
-edge_data = torch.load('edge_data_proteins.pt')
-edge_indices = edge_data['edge_index_proteins']
-edge_attributes = edge_data['edge_attr_proteins']
+checkpoint_path = f'checkpoints/{args.graphs}_feat_lstm_hidden_channels_{args.hidden_channels}_lr_{args.lr}_epochs_{args.epochs}/'
 
-# Input-output (test set)
-X = torch.load('gcn_inputs_proteins.pt')
-Y = torch.load('b_factors_proteins.pt')
+edge_data = torch.load(checkpoint_path+'edge_data.pt')
+edge_indices = edge_data['edge_index']
+edge_attributes = edge_data['edge_attr']
+X = torch.load(checkpoint_path+'gcn_inputs.pt')
+Y = torch.load(checkpoint_path+'b_factors.pt')
+pdb_codes = np.load(checkpoint_path+'pdb_codes.npy')
 
-# Bulding the test dataset 
-dataset = GCNBfDataset(edge_indices, edge_attributes, X, Y)
-test_loader = DataLoader(dataset, batch_size=32, shuffle=True)
-test_size = len(dataset) 
+dataset = GCNBfDataset(edge_indices, edge_attributes, X, Y, pdb=pdb_codes)
+test_indices = np.load(checkpoint_path+'test_indices.npy')
+train_size = int(0.95 * len(dataset))  
+test_size = len(test_indices)
+train_dataset, test_dataset = [dataset[i] for i in range(len(dataset)) if i not in test_indices], [dataset[i] for i in test_indices]
+train_loader = DataLoader(train_dataset)
+test_loader = DataLoader(test_dataset)
+
+print(len(dataset))
 
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super().__init__()
-        self.conv1 = GCNConv(in_channels, hidden_channels, normalize=True)
+        self.lm_dim = 512
+        self.lstm = lstm
+        self.aa_linear = nn.Linear(in_channels, self.lm_dim, bias=False)
+        self.lm_linear = nn.Linear(self.lm_dim, self.lm_dim, bias=True)
+
+        self.conv1 = GCNConv(self.lm_dim, hidden_channels, normalize=True)
         self.conv2 = GCNConv(hidden_channels, hidden_channels, normalize=True)
+
         self.conv3 = GCNConv(hidden_channels, out_channels, normalize=True)
 
     def forward(self, x, edge_index, edge_weight=None):
+
+        x = (self.aa_linear(x) + self.lm_linear(self.lstm(x)[0])).relu()
         x = self.conv1(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
         x = self.conv2(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
         x = self.conv3(x, torch.squeeze(edge_index), torch.squeeze(edge_weight))
@@ -83,7 +99,7 @@ class GCN(torch.nn.Module):
         return x
 
 # Calling model and optimiser
-model = torch.load(f'model_gnm_hidden_channels_{args.hidden_channels}_lr_{args.lr}_epochs_{args.epochs}.pth')
+model = torch.load(checkpoint_path+f'model_{args.graphs}.pth', map_location=device)
 optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
 

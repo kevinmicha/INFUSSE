@@ -54,7 +54,6 @@ class GCNBfDataset(Dataset):
         Y = self.Y[idx]
         if self.pdb is not None:
             pdb = self.pdb[idx]
-        #Y_base = self.Y_base[idx]
     
         return Data(x=X, edge_index=edge_index, y=Y, edge_attr=edge_attr, pdb=pdb)
 
@@ -101,8 +100,8 @@ test_indices = np.load(checkpoint_path+'test_indices.npy')
 train_size = int(0.95 * len(dataset))  
 test_size = len(test_indices)
 train_dataset, test_dataset = [dataset[i] for i in range(len(dataset)) if i not in test_indices], [dataset[i] for i in test_indices]
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+train_loader = DataLoader(train_dataset)
+test_loader = DataLoader(test_dataset)
 
 model = torch.load(checkpoint_path+f'model_{args.graphs}.pth', map_location=device)
 optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
@@ -128,10 +127,11 @@ def extract_list_of_residues(file_path):
                 if line.startswith('ATOM') and h_chain.upper() == line[slice(21, 22)] and int(line[slice(23, 26)]) <= 113:
                     h_res_list.append(fields[5])
                     h_idx_list.append(ca_index)
+                    ca_index += 1
                 elif line.startswith('ATOM') and (l_chain.upper() == line[slice(21, 22)]) and int(line[slice(23, 26)]) <= 107:
                     l_res_list.append(fields[5])
                     l_idx_list.append(ca_index)
-                ca_index += 1
+                    ca_index += 1
 
     return h_res_list, l_res_list, h_idx_list+l_idx_list
 
