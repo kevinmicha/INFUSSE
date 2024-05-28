@@ -5,9 +5,7 @@ import re
 import torch
 
 def parse_pdb(file_path):
-    #amino_acids = {}
     b_amino_acids = []
-    #current_aa = None
 
     with open(file, 'r') as pdb_file:
         for line in pdb_file:
@@ -37,24 +35,6 @@ def parse_pdb(file_path):
                 if fields[2] == 'CA':# and ((h_chain.upper() == line[slice(21, 22)] and int(line[slice(23, 26)]) >= 1 and int(line[slice(23, 26)]) <= 107) or (l_chain.upper() == line[slice(21, 22)] and int(line[slice(23, 26)]) >= 1 and int(line[slice(23, 26)]) <= 107)):
                     fields[-2] = '.'.join(fields[-2].split('.')[-2:]) if fields[-2].count('.') == 2 else fields[-2]
                     b_factor = float(fields[-2])
-    
-                    # Extract amino acid information
-                    #res_id = fields[5]
-                    #chain_id = fields[4]
-                    #if len(chain_id) == 1:
-                    #    aa_identifier = f"{chain_id}_{res_id}"
-                    #else:
-                    #    aa_identifier = f"{chain_id[0]}_{chain_id[1:]}"
-    
-                    # Check if the amino acid has been encountered before
-                    #if aa_identifier not in amino_acids:
-                    #    amino_acids[aa_identifier] = {
-                    #        'b_factors': [],
-                    #        'residue_id': fields[5],
-                    #        'chain_id:': fields[4],
-                    #    }
-    
-                    #amino_acids[aa_identifier]['b_factors'].append(b_factor)
                     b_amino_acids.append(b_factor)
                 elif line.startswith('ENDMDL'):
                     break
@@ -62,15 +42,8 @@ def parse_pdb(file_path):
     return b_amino_acids
 
 def compute_average_b_factors(b_amino_acids):
-    #averages = {}
-    #unp = False
-    #for aa_id, data in amino_acids.items():
-    #    avg_b_factor = (data['b_factors'])[0]
-    #    if avg_b_factor > 100:
-    #        unp = True
-    #    averages[aa_id] = avg_b_factor
     unp = False
-    if any(b_fact_element > 120 or b_fact_element < 0 for b_fact_element in b_amino_acids):
+    if any(b_fact_element > 100 or b_fact_element < 0 for b_fact_element in b_amino_acids):
         unp = True
     averages = b_amino_acids
     mean_ = np.mean(averages)
@@ -86,10 +59,8 @@ def get_first_digit(filename):
             return int(char)
     return -1 
 
-folder = '/Users/kevinmicha/Documents/all_structures/chothia_unbound'
-folder_2 = '/Users/kevinmicha/Documents/all_structures/chothia_ext'
-folder_3 = '/Users/kevinmicha/Documents/all_structures/chothia_ext_ext'
-file_list = list(dict.fromkeys(sorted([file for file in glob.glob(os.path.join(folder, '*stripped.pdb')) if '_H' not in file]+[file for file in glob.glob(os.path.join(folder_2, '*stripped.pdb')) if '_H' not in file]+[file for file in glob.glob(os.path.join(folder_3, '*stripped.pdb')) if '_H' not in file], key=get_first_digit)))
+folder = '/Users/kevinmicha/Documents/all_structures/chothia_ext'
+file_list = list(dict.fromkeys(sorted([file for file in glob.glob(os.path.join(folder, '*stripped.pdb')) if '_H' not in file], key=get_first_digit)))
 
 pdb_codes = []
 b_factors = []

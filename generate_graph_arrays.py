@@ -8,8 +8,8 @@ import torch
 from torch_geometric.utils.convert import from_scipy_sparse_matrix
 
 directory = '/Users/kevinmicha/Documents/PhD/GCN-Bf/'
-#input_folder = '/Users/kevinmicha/Documents/all_structures/adjacencies_sparse/'
-input_folder = '/Users/kevinmicha/Documents/all_structures/contact_maps/'
+input_folder = '/Users/kevinmicha/Documents/all_structures/adjacencies_sparse/'
+#input_folder = '/Users/kevinmicha/Documents/all_structures/contact_maps/'
 pdb_codes = np.load(directory+'pdb_codes.npy')
 ei_list = []
 ea_list = []
