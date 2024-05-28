@@ -163,6 +163,16 @@ def find_cdr_positions(heavy_l, light_l):
     
     return cdr_indices
 
+def sort_keys(keys):
+    def res_id_sorting(key):
+        match = re.match(r'(\d+)([A-Z]?)([HL])$', key)
+        residue_number = int(match.group(1))
+        residue_letter = match.group(2) or ''
+        chain_letter = match.group(3)
+        
+        return (chain_letter == 'L', residue_number, residue_letter or '')
+
+    return sorted(keys, key=res_id_sorting)
 
 @torch.no_grad()
 def plot_performance(loader, ca_index, cdr_positions, glob=False, res_dict=None, h_l=None, l_l=None, last=False):
@@ -171,7 +181,7 @@ def plot_performance(loader, ca_index, cdr_positions, glob=False, res_dict=None,
     l = h_l + l_l
 
     if not args.glob:
-        plt.plot(np.arange(len(torch.squeeze(y).numpy())), np.abs(torch.squeeze(pred)-torch.squeeze(y)).numpy())
+        plt.plot(np.arange(len(torch.squeeze(y).numpy())), ((torch.squeeze(pred)-torch.squeeze(y))**2).numpy())
         for i in range(len(cdr_positions)//2):
             plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
         plt.show()
@@ -182,14 +192,19 @@ def plot_performance(loader, ca_index, cdr_positions, glob=False, res_dict=None,
             else:
                 item += 'L'
             if item in res_dict:
-                res_dict[item]['tot_b_factor'] += np.abs(torch.squeeze(pred[i])-torch.squeeze(y[i])).numpy()
+                res_dict[item]['tot_b_factor'] += ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).numpy()
                 res_dict[item]['count'] += 1
             else:
-                res_dict[item] = {'tot_b_factor': np.abs(torch.squeeze(pred[i])-torch.squeeze(y[i])).numpy(), 'count': 1}
+                res_dict[item] = {'tot_b_factor': ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).numpy(), 'count': 1}
         if last: # last PDB
-            residue_ids = list(res_dict.keys())
+            residue_ids = sort_keys(list(res_dict.keys()))
+            cdr_positions = [residue_ids.index(el) for el in ['26H', '32H', '52H', '56H', '95H', '102H']] + [residue_ids.index(el) for el in ['24L', '34L', '50L', '56L', '89L', '97L']]
             b_factors = [res_dict[id_]['tot_b_factor'] / res_dict[id_]['count'] for id_ in residue_ids]
             plt.plot(range(len(residue_ids)), b_factors, marker='o', linestyle='-')
+            for i in range(len(cdr_positions)//2):
+                plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
+            plt.xlabel('Residue index')
+            plt.ylabel('MSE')
             plt.show()
     return res_dict
 
