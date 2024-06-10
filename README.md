@@ -24,7 +24,7 @@ List of dependencies:
 - `chothia_ext` (go to `gcn_bf/config.py` and update `STRUCTURE_DIR` accordingly)
 - `strides_outputs` (place this folder in `gcn_bf/data/`) 
 
-3. Go to `scripts` and run in the following order (graphs can be `gmn` or `bagpype`):
+3. Go to `scripts` and run in the following order (graphs can be `gnm` or `bagpype`):
 - `python generate_b_factors.py [--thr THR]` 
 - `python generate_input.py` 
 - `python generate_graph_arrays.py [--graphs GRAPHS]` 
