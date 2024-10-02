@@ -10,10 +10,10 @@ import torch
 from torch_geometric.nn import GCNConv
 
 class GCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, lstm):
+    def __init__(self, in_channels, hidden_channels, out_channels, lm, lm_dim=1024):
         super().__init__()
-        self.lm_dim = 512
-        self.lstm = lstm
+        self.lm_dim = lm_dim
+        self.lm = lm
         self.aa_linear = torch.nn.Linear(in_channels, self.lm_dim, bias=False)
         self.lm_linear = torch.nn.Linear(self.lm_dim, self.lm_dim, bias=True)
 
@@ -24,7 +24,7 @@ class GCN(torch.nn.Module):
 
     def forward(self, x, edge_index, edge_weight=None):
 
-        x = (self.aa_linear(x) + self.lm_linear(self.lstm(x)[0])).relu()
+        x = (self.aa_linear(x) + self.lm_linear(self.lm(x)[0])).relu()
         x = self.conv1(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
         x = self.conv2(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
         x = self.conv3(x, torch.squeeze(edge_index), torch.squeeze(edge_weight))

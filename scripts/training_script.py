@@ -12,6 +12,8 @@ from gcn_bf.utils.torch_utils import count_parameters, get_dataloaders, load_lst
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')
+parser.add_argument('--lm', type=str, default='transformer')
+parser.add_argument('--cssp', type=bool, default=False)
 parser.add_argument('--hidden_channels', type=int, default=256)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--epochs', type=int, default=500)
@@ -22,13 +24,17 @@ if torch.cuda.is_available():
 else:
     device = torch.device('cpu')
 
-# LSTM part
-input_dim = 26  
-hidden_dim = 512 
-output_dim = 512 
-num_layers = 2
-lstm = torch.nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers)
-load_lstm_weights(lstm, CHECKPOINTS_DIR+'lstm_lm.hdf5')
+if args.lm == 'transformer':
+    lm_dim = 1024
+    lm, tokeniser = load_transformer_weights(cssp=args.cssp)
+elif args.lm == 'lstm':
+    input_dim = 26  
+    lm_dim = 512 
+    num_layers = 2
+    lm = torch.nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers)
+    load_lstm_weights(lm, CHECKPOINTS_DIR+'lstm_lm.hdf5')
+else:
+    print('#TODO. Implement here the no-LM option')
 
 # Data
 train_loader, test_loader, test_size, dataset = get_dataloaders(DATA_DIR, device, mode='train')
@@ -37,7 +43,8 @@ model = GCN(
     in_channels=dataset.num_features,
     hidden_channels=args.hidden_channels,
     out_channels=dataset.out_channels,
-    lstm=lstm,
+    lm=lm,
+    lm_dim=lm_dim,
 ).to(device)
 
 optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
@@ -54,4 +61,4 @@ for epoch in range(1, args.epochs + 1):
     log(Epoch=epoch, Loss=loss, Corr=corr, Test=tmp_test_acc)
     times.append(time.time() - start)
 print(f'Median time per epoch: {torch.tensor(times).median():.4f}s')
-torch.save(model, CHECKPOINTS_DIR+f'model_{args.graphs}_lstm_features_hidden_channels_{args.hidden_channels}_lr_{args.lr}_epochs_{args.epochs}.pth')
+torch.save(model, CHECKPOINTS_DIR+f'model_{args.graphs}_{args.lm}_features_hidden_channels_{args.hidden_channels}_lr_{args.lr}_epochs_{args.epochs}.pth')
