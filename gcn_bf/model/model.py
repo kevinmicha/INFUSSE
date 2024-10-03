@@ -23,14 +23,13 @@ class GCN(torch.nn.Module):
         self.conv3 = GCNConv(hidden_channels, out_channels, normalize=True)
 
     def forward(self, x, edge_index, edge_weight=None):
-
         if self.lm_dim == 1024:
-            mask = x['input_ids'][0] > 4 # Special tokens go from 0 to 4 included in AntiBERTa
-            x = model(**x, output_attentions=False, output_hidden_states=True)['hidden_states'][-1]
+            mask = x > 4 # Special tokens go from 0 to 4 (incl.) in AntiBERTa
+            x = self.lm(x[None,:], output_attentions=False, output_hidden_states=True)['hidden_states'][-1]
             x = x[mask.unsqueeze(-1).expand_as(x)].view(x.size(0), -1, x.size(-1))
         else:
             x = self.lm(x)[0]
-        x = (self.aa_linear(x) + self.lm_linear(x)).relu()
+            x = (self.aa_linear(x) + self.lm_linear(x)).relu()
         x = self.conv1(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
         x = self.conv2(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
         x = self.conv3(x, torch.squeeze(edge_index), torch.squeeze(edge_weight))
