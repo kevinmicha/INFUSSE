@@ -5,7 +5,7 @@ import torch
 
 from torch_geometric.loader import DataLoader
 from torch.utils.data import random_split
-from transformers import RoFormerForMaskedLM, RoFormerTokenizer
+from transformers import RoFormerForMaskedLM
 
 from gcn_bf.dataset.dataset import GCNBfDataset
 from gcn_bf.utils.biology_utils import sort_keys

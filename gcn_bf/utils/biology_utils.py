@@ -2,6 +2,8 @@ import numpy as np
 import re
 import torch
 
+from transformers import RoFormerTokenizer
+
 def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
     unp = False
     if any(b_fact_element > b_factor_thr or b_fact_element < 0 for b_fact_element in b_amino_acids):
@@ -122,7 +124,7 @@ def generate_one_hot_matrix(file_path):
             X[i] = encode_line(line, amino_acids, secondary_structure)
     return X
 
-def get_tokenised_sequence(cssp=False):
+def get_tokenised_sequence(file_path, cssp=False):
     aa_pos = 1
     chain_pos = 2
     amino_acid_dictionary = {
@@ -134,7 +136,7 @@ def get_tokenised_sequence(cssp=False):
     ' ': ' ', 
     }
 
-    if ccsp:
+    if cssp:
         tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2-cssp')
     else:
         tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2')

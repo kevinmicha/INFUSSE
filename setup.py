@@ -28,6 +28,6 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=['gcn_bf', 'gcn_bf.dataset', 'gcn_bf.model', 'gcn_bf.utils'],
-    install_requires=['h5py', 'matplotlib', 'numpy', 'pandas', 'requests', 'scikit-learn', 'scipy', 'torch', 'torch_geometric'],
+    install_requires=['h5py', 'matplotlib', 'numpy', 'pandas', 'requests', 'rjieba', 'scikit-learn', 'scipy', 'torch', 'torch_geometric', 'transformers'],
     cmdclass={'test': PyTest}
 )

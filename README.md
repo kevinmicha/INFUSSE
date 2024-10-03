@@ -13,10 +13,12 @@ List of dependencies:
 * `numpy`
 * `pandas`
 * `requests`
+* `rjieba`
 * `scikit-learn`
 * `scipy`
 * `torch`
 * `torch_geometric`
+* `transformers`
 
 2. Request four folders of data from the authors:
 - `adjacencies_sparse` (go to `gcn_bf/config.py` and update `ADJACENCIES_DIR` accordingly)
