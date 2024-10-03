@@ -96,6 +96,14 @@ def find_cdr_positions(heavy_l, light_l):
     
     return cdr_indices
 
+def format_sequence(sequence):
+    seq_with_spaces = ' '.join(sequence)
+    final_sequence = seq_with_spaces.replace('-', '[PAD]')
+    final_sequence = final_sequence.replace(':', '[SEP]')
+    final_sequence = final_sequence.replace('?', '[UNK]')
+    
+    return final_sequence
+
 def generate_one_hot_matrix(file_path):
     '''
     Reading and extracting valid lines
@@ -113,6 +121,42 @@ def generate_one_hot_matrix(file_path):
         for i, line in enumerate(valid_lines):
             X[i] = encode_line(line, amino_acids, secondary_structure)
     return X
+
+def get_tokenised_sequence(cssp=False):
+    aa_pos = 1
+    chain_pos = 2
+    amino_acid_dictionary = {
+    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
+    'GLU': 'E', 'GLN': 'Q', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
+    'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
+    'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V',
+    'ASX': 'B', 'GLX': 'Z', 'SEC': 'U', 'PYL': 'O', 'XAA': 'X',
+    ' ': ' ', 
+    }
+
+    if ccsp:
+        tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2-cssp')
+    else:
+        tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2')
+
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        valid_lines = [line for line in lines if line.startswith('ASG')]
+        X = ''
+        for i, line in enumerate(valid_lines):
+            split_line = line.split()
+            aa = split_line[aa_pos] 
+            X += amino_acid_dictionary.get(aa, '?')
+            if i > 0:
+                if split_line[chain_pos] != split_line_temp[chain_pos]:
+                    X += ':'
+
+            split_line_temp = split_line
+    
+    input_seq = format_sequence(X)
+    inputs = tokeniser(input_seq, return_tensors='pt')
+
+    return inputs
 
 def get_first_digit(filename):
     for char in filename:

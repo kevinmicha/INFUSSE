@@ -8,7 +8,7 @@ from torch_geometric.logging import log
 from gcn_bf.config import CHECKPOINTS_DIR, DATA_DIR
 from gcn_bf.dataset.dataset import GCNBfDataset
 from gcn_bf.model.model import GCN
-from gcn_bf.utils.torch_utils import count_parameters, get_dataloaders, load_lstm_weights, test, train
+from gcn_bf.utils.torch_utils import count_parameters, get_dataloaders, load_lstm_weights, load_transformer_weights, test, train
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')
@@ -26,13 +26,13 @@ else:
 
 if args.lm == 'transformer':
     lm_dim = 1024
-    lm, tokeniser = load_transformer_weights(cssp=args.cssp)
+    lm = load_transformer_weights(cssp=args.cssp)
 elif args.lm == 'lstm':
     input_dim = 26  
     lm_dim = 512 
     num_layers = 2
     lm = torch.nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers)
-    load_lstm_weights(lm, CHECKPOINTS_DIR+'lstm_lm.hdf5')
+    lm = load_lstm_weights(lm, CHECKPOINTS_DIR+'lstm_lm.hdf5')
 else:
     print('#TODO. Implement here the no-LM option')
 

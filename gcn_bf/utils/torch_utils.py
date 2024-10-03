@@ -5,6 +5,7 @@ import torch
 
 from torch_geometric.loader import DataLoader
 from torch.utils.data import random_split
+from transformers import RoFormerForMaskedLM, RoFormerTokenizer
 
 from gcn_bf.dataset.dataset import GCNBfDataset
 from gcn_bf.utils.biology_utils import sort_keys
@@ -74,6 +75,17 @@ def load_lstm_weights(model, path):
 
     model.eval()
 
+    return model
+
+def load_transformer_weights(cssp=False):
+    if cssp:
+        model = RoFormerForMaskedLM.from_pretrained('alchemab/antiberta2-cssp')
+    else:
+        model = RoFormerForMaskedLM.from_pretrained('alchemab/antiberta2')
+
+    model.eval()
+
+    return model
 
 @torch.no_grad()
 def plot_performance(model, loader, ca_index, cdr_positions, glob=False, res_dict=None, h_l=None, l_l=None, last=False):
