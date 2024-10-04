@@ -2,6 +2,7 @@ import numpy as np
 import re
 import torch
 
+from gcn_bf.config import STRUCTURE_DIR
 from transformers import RoFormerTokenizer
 
 def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
@@ -135,26 +136,59 @@ def get_tokenised_sequence(file_path, cssp=False):
     'ASX': 'B', 'GLX': 'Z', 'SEC': 'U', 'PYL': 'O', 'XAA': 'X',
     ' ': ' ', 
     }
+    h_chain_seq = ''
+    l_chain_seq = ''
+    ag_chain_seq = ''
+    input_folder = STRUCTURE_DIR    
+    
+    with open(input_folder+file_path[-8:-4]+'.pdb', 'r') as pdb_file:
+        for line in pdb_file:
+            if line.find('AGCHAIN') != -1 or line.find('HCHAIN') != -1 or line.find('LCHAIN') != -1:
+                if line[line.find('AGCHAIN')+len('AGCHAIN')+1:line.find('AGCHAIN')+len('AGCHAIN')+5] != 'NONE':
+                    ag_chain = line[line.find('AGCHAIN')+len('AGCHAIN')+1]
+                    if line[line.find('AGCHAIN')+len('AGCHAIN')+2] == ';':
+                        ag_chain_2 = line[line.find('AGCHAIN')+len('AGCHAIN')+3]
+                        if line[line.find('AGCHAIN')+len('AGCHAIN')+4] == ';':
+                            ag_chain_3 = line[line.find('AGCHAIN')+len('AGCHAIN')+5]
+                        else: 
+                            ag_chain_3 = None
+                    else:
+                        ag_chain_2 = None
+                        ag_chain_3 = None
+                else:
+                    ag_chain = None
+                    ag_chain_2 = None
+                    ag_chain_3 = None
+                h_chain = line[line.find('HCHAIN')+len('HCHAIN')+1]
+                l_chain = line[line.find('LCHAIN')+len('LCHAIN')+1]
 
     if cssp:
         tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2-cssp')
     else:
         tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2')
 
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        valid_lines = [line for line in lines if line.startswith('ASG')]
-        X = ''
-        for i, line in enumerate(valid_lines):
-            split_line = line.split()
-            aa = split_line[aa_pos] 
-            X += amino_acid_dictionary.get(aa, '?')
-            if i > 0:
-                if split_line[chain_pos] != split_line_temp[chain_pos]:
-                    X += ':'
+    with open(input_folder+file_path[-8:-4]+'.pdb', 'r') as pdb_file:
+        for line in pdb_file:
+            if line.startswith('ATOM'):
+                atom_type = line[12:16].strip()
+                if atom_type == 'CA':
+                    chain_id = line[21] 
+                    residue_name = line[17:20].strip()  
+                    residue_number = line[22:26].strip() 
 
-            split_line_temp = split_line
-    
+                    if residue_name in amino_acid_dictionary:
+                        amino_acid = amino_acid_dictionary[residue_name]
+                        
+                        if chain_id == h_chain:
+                            h_chain_seq += amino_acid
+                        elif (chain_id == l_chain and h_chain != l_chain) or (chain_id == l_chain.lower() and h_chain == l_chain):
+                            l_chain_seq += amino_acid
+                        elif chain_id in [ag_chain, ag_chain_2, ag_chain_3]:
+                            ag_chain_seq += amino_acid
+    if ag_chain_seq != '':
+        X = f'{h_chain_seq}:{l_chain_seq}:{ag_chain_seq}'
+    else:
+        X = f'{h_chain_seq}:{l_chain_seq}'
     input_seq = format_sequence(X)
     inputs = tokeniser(input_seq, return_tensors='pt')
 
@@ -167,7 +201,9 @@ def get_first_digit(filename):
     return -1 
 
 def parse_pdb(file_path):
-    b_amino_acids = []
+    b_factors_heavy_chain = []
+    b_factors_light_chain = []
+    b_factors_antigens = []
 
     with open(file_path, 'r') as pdb_file:
         for line in pdb_file:
@@ -189,19 +225,34 @@ def parse_pdb(file_path):
                     ag_chain_3 = None
                 h_chain = line[line.find('HCHAIN')+len('HCHAIN')+1]
                 l_chain = line[line.find('LCHAIN')+len('LCHAIN')+1]
-    
+
     with open(file_path, 'r') as pdb_file:
         for line in pdb_file:
-            if line.startswith('ATOM') and (h_chain.upper() == line[slice(21, 22)] or l_chain.upper() == line[slice(21, 22)] or ag_chain == line[slice(21, 22)] or ag_chain_2 == line[slice(21, 22)] or ag_chain_3 == line[slice(21, 22)]):
+            if line.startswith('ATOM'):
+                chain_id = line[slice(21, 22)].strip()  
                 fields = re.split(r'\s+', line.strip())
-                if fields[2] == 'CA':
+                
+                if fields[2] == 'CA': 
                     fields[-2] = '.'.join(fields[-2].split('.')[-2:]) if fields[-2].count('.') == 2 else fields[-2]
                     b_factor = float(fields[-2])
-                    b_amino_acids.append(b_factor)
-                elif line.startswith('ENDMDL'):
-                    break
+
+                    # Process heavy chain first
+                    if h_chain.upper() == chain_id.upper():
+                        b_factors_heavy_chain.append(b_factor)
+
+                    # Then light chain 
+                    elif l_chain.upper() == chain_id.upper():
+                        b_factors_light_chain.append(b_factor)
+
+                    # Finally antigen chains
+                    elif chain_id in [ag_chain, ag_chain_2, ag_chain_3]:
+                        b_factors_antigens.append(b_factor)
+
+            elif line.startswith('ENDMDL'):
+                break
+
                 
-    return b_amino_acids
+    return b_factors_heavy_chain + b_factors_light_chain + b_factors_antigens
 
 def sort_keys(keys):
     def res_id_sorting(key):

@@ -33,12 +33,32 @@ def compute_distance_matrix(file_path):
 
     # Alpha-C coordinates 
     alpha_carbon_coordinates = {}
-    for model in structure:
-        for chain in model:
-            if chain.id.upper() in [h_chain, l_chain, ag_chain, ag_chain_2, ag_chain_3]:
-                for residue in chain:
-                    if 'CA' in residue and residue.id[0] == ' ':# and ((h_chain == chain.id.upper() and residue.id[1] >= 1 and residue.id[1] <= 107) or (l_chain == chain.id.upper() and residue.id[1] >= 1 and residue.id[1] <= 107)):
-                        alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
+    if h_chain:
+        for model in structure:
+            for chain in model:
+                if chain.id.upper() == h_chain:
+                    for residue in chain:
+                        if 'CA' in residue and residue.id[0] == ' ':
+                            alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
+
+    # Process light chain next
+    if l_chain:
+        for model in structure:
+            for chain in model:
+                if chain.id.upper() == l_chain:
+                    for residue in chain:
+                        if 'CA' in residue and residue.id[0] == ' ':
+                            alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
+
+    # Process antigen chains last
+    for ag_chain_type in [ag_chain, ag_chain_2, ag_chain_3]:
+        if ag_chain_type:
+            for model in structure:
+                for chain in model:
+                    if chain.id.upper() == ag_chain_type:
+                        for residue in chain:
+                            if 'CA' in residue and residue.id[0] == ' ':
+                                alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
     
     # Compute distances and create matrix
     num_residues = len(alpha_carbon_coordinates)
@@ -54,12 +74,12 @@ def compute_distance_matrix(file_path):
 def save_distance_matrix(distance_matrix, output_file):
     scipy.sparse.save_npz(output_file, scipy.sparse.csr_matrix(distance_matrix))
 
-folder = '/Users/kevinmicha/Documents/all_structures/chothia_ext'
-file_list = sorted([file for file in glob.glob(os.path.join(folder, '*stripped.pdb')) if '_H' not in file])
+folder = '/Users/kevinmicha/Documents/all_structures/chothia_gcn'
+file_list = sorted([file for file in glob.glob(os.path.join(folder, '*.pdb')) if '_H' not in file])
 threshold = 10.0
 
 for file in file_list:
-    print(file[-17:-13])
+    print(file[-8:-4])
     distance_matrix = compute_distance_matrix(file)
     contact_map = np.where(distance_matrix<=threshold, 1, 0)
-    save_distance_matrix(contact_map, f'/Users/kevinmicha/Documents/all_structures/contact_maps/{file[-17:-13]}.npz')
+    save_distance_matrix(contact_map, f'/Users/kevinmicha/Documents/all_structures/contact_maps/{file[-8:-4]}.npz')

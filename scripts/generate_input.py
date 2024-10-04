@@ -23,7 +23,7 @@ print(len(pdb_codes))
 
 for pdb in pdb_codes:
     if args.lm == 'transformer':
-        X = get_tokenised_sequence(input_folder+pdb+'.txt', args.cssp)
+        X = get_tokenised_sequence(input_folder+pdb+'.txt', args.cssp)['input_ids'][0][:256]
         X_list.append(X)
     else:
         X = generate_one_hot_matrix(input_folder+pdb+'.txt')

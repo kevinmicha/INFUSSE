@@ -13,13 +13,13 @@ from gcn_bf.utils.biology_utils import sort_keys
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def get_dataloaders(path, device, mode='test', train_size=0.95):
+def get_dataloaders(path, device, mode='test', train_size=0.95, lm=None):
     if mode == 'test':
         shuffle = False
         batch_size = 1
     else:
         shuffle = True
-        batch_size = 64
+        batch_size = 8
         
     edge_data = torch.load(path+'edge_data.pt')
     edge_indices = edge_data['edge_index']
@@ -28,7 +28,7 @@ def get_dataloaders(path, device, mode='test', train_size=0.95):
     Y = torch.load(path+'b_factors.pt')
     pdb_codes = np.load(path+'pdb_codes.npy')
 
-    dataset = GCNBfDataset(edge_indices, edge_attributes, X, Y, device=device, pdb=pdb_codes)
+    dataset = GCNBfDataset(edge_indices, edge_attributes, X, Y, device=device, pdb=pdb_codes, lm=lm)
     if mode == 'test':
         test_indices = np.load(path+'test_indices.npy')
     train_size = int(train_size * len(dataset))  
@@ -39,7 +39,7 @@ def get_dataloaders(path, device, mode='test', train_size=0.95):
     else:
         train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size)
+    test_loader = DataLoader(test_dataset, batch_size=1)
 
     if mode != 'test':
         np.save(path+'test_indices.npy', np.array(test_dataset.indices))
@@ -83,6 +83,8 @@ def load_transformer_weights(cssp=False):
     else:
         model = RoFormerForMaskedLM.from_pretrained('alchemab/antiberta2')
 
+    for name, param in model.named_parameters():
+        param.requires_grad = False # Freezing parameters
     model.eval()
 
     return model
@@ -131,6 +133,8 @@ def test(model, test_loader, test_size):
         pred = model(loader.x, loader.edge_index, loader.edge_attr)
         loss = torch.nn.MSELoss(reduction='mean')(torch.squeeze(pred), torch.squeeze(loader.y))
         test_loss += loader.num_graphs * loss.item() / test_size
+        print(loader.pdb)
+        print(loader.num_graphs * torch.corrcoef(torch.stack((torch.squeeze(pred), torch.squeeze(loader.y))))[0,1])
         corr += loader.num_graphs * torch.corrcoef(torch.stack((torch.squeeze(pred), torch.squeeze(loader.y))))[0,1] / test_size 
 
     return float(test_loss), float(corr)

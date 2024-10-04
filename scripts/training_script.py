@@ -27,17 +27,16 @@ else:
 if args.lm == 'transformer':
     lm_dim = 1024
     lm = load_transformer_weights(cssp=args.cssp)
+    train_loader, test_loader, test_size, dataset = get_dataloaders(DATA_DIR, device, mode='train', lm=lm)
 elif args.lm == 'lstm':
     input_dim = 26  
     lm_dim = 512 
     num_layers = 2
     lm = torch.nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers)
     lm = load_lstm_weights(lm, CHECKPOINTS_DIR+'lstm_lm.hdf5')
+    train_loader, test_loader, test_size, dataset = get_dataloaders(DATA_DIR, device, mode='train')
 else:
     print('#TODO. Implement here the no-LM option')
-
-# Data
-train_loader, test_loader, test_size, dataset = get_dataloaders(DATA_DIR, device, mode='train')
 
 model = GCN(
     in_channels=dataset.num_features,
