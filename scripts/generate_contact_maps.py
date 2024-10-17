@@ -30,42 +30,55 @@ def compute_distance_matrix(file_path):
                     ag_chain_3 = None
                 h_chain = line[line.find('HCHAIN')+len('HCHAIN')+1]
                 l_chain = line[line.find('LCHAIN')+len('LCHAIN')+1]
-
     # Alpha-C coordinates 
-    alpha_carbon_coordinates = {}
+    alpha_carbon_coordinates = []
     if h_chain:
         for model in structure:
             for chain in model:
-                if chain.id.upper() == h_chain:
+                if (chain.id == h_chain or (chain.id.upper() == h_chain and h_chain != l_chain and h_chain != ag_chain)):
                     for residue in chain:
-                        if 'CA' in residue and residue.id[0] == ' ':
-                            alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
-
+                        if 'CA' in residue and residue.id[0] == ' ':# and int(residue.id[1]) <= 112:
+                            alpha_carbon_coordinates.append(residue['CA'].get_coord())
+        
     # Process light chain next
     if l_chain:
         for model in structure:
             for chain in model:
-                if chain.id.upper() == l_chain:
+                if (chain.id.upper() == l_chain and h_chain != l_chain) or (chain.id == l_chain.lower() and h_chain == l_chain):
                     for residue in chain:
-                        if 'CA' in residue and residue.id[0] == ' ':
-                            alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
+                        if 'CA' in residue and residue.id[0] == ' ':# and int(residue.id[1]) <= 107:
+                            alpha_carbon_coordinates.append(residue['CA'].get_coord())
 
     # Process antigen chains last
-    for ag_chain_type in [ag_chain, ag_chain_2, ag_chain_3]:
-        if ag_chain_type:
-            for model in structure:
-                for chain in model:
-                    if chain.id.upper() == ag_chain_type:
-                        for residue in chain:
-                            if 'CA' in residue and residue.id[0] == ' ':
-                                alpha_carbon_coordinates[(chain.id, residue.id)] = residue['CA'].get_coord()
+    if ag_chain:
+        for model in structure:
+            for chain in model:
+                if (chain.id.upper() == ag_chain and l_chain != ag_chain and h_chain != ag_chain and ag_chain != ag_chain_2 and ag_chain != ag_chain_3) or (chain.id == ag_chain.lower() and (l_chain == ag_chain or h_chain == ag_chain)) or (chain.id == ag_chain and l_chain != ag_chain and h_chain != ag_chain and (ag_chain == ag_chain_2 or ag_chain == ag_chain_3)):
+                    for residue in chain:
+                        if 'CA' in residue and residue.id[0] == ' ':
+                            alpha_carbon_coordinates.append(residue['CA'].get_coord())
     
+    if ag_chain_2:
+        for model in structure:
+            for chain in model:
+                if (chain.id.upper() == ag_chain_2 and ag_chain != ag_chain_2 and l_chain != ag_chain_2 and h_chain != ag_chain_2) or (chain.id == ag_chain_2.lower() and (l_chain == ag_chain_2 or h_chain == ag_chain_2 or ag_chain == ag_chain_2)):
+                    for residue in chain:
+                        if 'CA' in residue and residue.id[0] == ' ':
+                            alpha_carbon_coordinates.append(residue['CA'].get_coord())
+    if ag_chain_3:
+        for model in structure:
+            for chain in model:
+                if (chain.id.upper() == ag_chain_3 and ag_chain != ag_chain_3 and ag_chain_2 != ag_chain_3 and l_chain != ag_chain_3 and h_chain != ag_chain_3) or (chain.id == ag_chain_3.lower() and (l_chain == ag_chain_3 or h_chain == ag_chain_3 or ag_chain == ag_chain_3 or ag_chain_2 == ag_chain_3)):
+                    for residue in chain:
+                        if 'CA' in residue and residue.id[0] == ' ':
+                            alpha_carbon_coordinates.append(residue['CA'].get_coord())
+
     # Compute distances and create matrix
     num_residues = len(alpha_carbon_coordinates)
     distance_matrix = np.zeros((num_residues, num_residues))
 
-    for i, (_, coord1) in enumerate(alpha_carbon_coordinates.items()):
-        for j, (_, coord2) in enumerate(alpha_carbon_coordinates.items()):
+    for i, coord1 in enumerate(alpha_carbon_coordinates):
+        for j, coord2 in enumerate(alpha_carbon_coordinates):
             distance_matrix[i, j] = np.linalg.norm(coord1 - coord2)
 
     return distance_matrix
@@ -80,6 +93,8 @@ threshold = 10.0
 
 for file in file_list:
     print(file[-8:-4])
+    #file ='/Users/kevinmicha/Documents/all_structures/chothia_gcn/8dmh.pdb'
     distance_matrix = compute_distance_matrix(file)
     contact_map = np.where(distance_matrix<=threshold, 1, 0)
+    print(contact_map.shape)
     save_distance_matrix(contact_map, f'/Users/kevinmicha/Documents/all_structures/contact_maps/{file[-8:-4]}.npz')

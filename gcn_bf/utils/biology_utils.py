@@ -3,7 +3,29 @@ import re
 import torch
 
 from gcn_bf.config import STRUCTURE_DIR
-from transformers import RoFormerTokenizer
+from transformers import BertTokenizer, RoFormerTokenizer
+
+def antibody_sequence_identity(seq1, seq2):
+    r"""Computes the percentage of sequence identity.
+
+    Parameters
+    ----------
+    seq1: list
+        First sequence.
+    seq2: list
+        Second sequence.
+    
+    """
+    if len(seq1) != len(seq2):
+        return 0
+
+    valid_aa = [(a, b) for a, b in zip(seq1, seq2) if a > 4 and b > 4]
+    if not valid_aa:
+        return 0
+        
+    matches = sum(1 for a, b in valid_aa if a == b)
+    
+    return matches / len(valid_aa)
 
 def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
     unp = False
@@ -64,7 +86,7 @@ def extract_list_of_residues(file_path):
         for line in pdb_file:
             fields = re.split(r'\s+', line.strip())
             if fields[2] == 'CA':
-                if line.startswith('ATOM') and h_chain.upper() == line[slice(21, 22)] and int(line[slice(23, 26)]) <= 113:
+                if line.startswith('ATOM') and h_chain.upper() == line[slice(21, 22)] and int(line[slice(23, 26)]) <= 112:
                     h_res_list.append(fields[5])
                     h_idx_list.append(ca_index)
                     ca_index += 1
@@ -134,7 +156,7 @@ def get_tokenised_sequence(file_path, cssp=False):
     'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
     'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V',
     'ASX': 'B', 'GLX': 'Z', 'SEC': 'U', 'PYL': 'O', 'XAA': 'X',
-    ' ': ' ', 
+    ' ': ' ', 'UNK': '?',
     }
     h_chain_seq = ''
     l_chain_seq = ''
@@ -163,9 +185,10 @@ def get_tokenised_sequence(file_path, cssp=False):
                 l_chain = line[line.find('LCHAIN')+len('LCHAIN')+1]
 
     if cssp:
-        tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2-cssp')
+        tokeniser_ab = RoFormerTokenizer.from_pretrained('alchemab/antiberta2-cssp')
     else:
-        tokeniser = RoFormerTokenizer.from_pretrained('alchemab/antiberta2')
+        tokeniser_ab = RoFormerTokenizer.from_pretrained('alchemab/antiberta2')
+    tokeniser_ag = BertTokenizer.from_pretrained('Rostlab/prot_bert', do_lower_case=False)
 
     with open(input_folder+file_path[-8:-4]+'.pdb', 'r') as pdb_file:
         for line in pdb_file:
@@ -179,20 +202,29 @@ def get_tokenised_sequence(file_path, cssp=False):
                     if residue_name in amino_acid_dictionary:
                         amino_acid = amino_acid_dictionary[residue_name]
                         
-                        if chain_id == h_chain:
+                        if (chain_id == h_chain or (chain_id.upper() == h_chain and h_chain != l_chain and h_chain != ag_chain)):# and int(line[slice(23, 26)]) <= 112:
                             h_chain_seq += amino_acid
-                        elif (chain_id == l_chain and h_chain != l_chain) or (chain_id == l_chain.lower() and h_chain == l_chain):
+                        elif ((chain_id.upper() == l_chain and h_chain != l_chain) or (chain_id == l_chain.lower() and h_chain == l_chain)):# and int(line[slice(23, 26)]) <= 107:
                             l_chain_seq += amino_acid
-                        elif chain_id in [ag_chain, ag_chain_2, ag_chain_3]:
+                        elif (chain_id.upper() in [ag_chain, ag_chain_2, ag_chain_3] and l_chain not in [ag_chain, ag_chain_2, ag_chain_3] and h_chain not in [ag_chain, ag_chain_2, ag_chain_3]) or (chain_id in [ag_chain.lower() if ag_chain is not None else None, ag_chain_2.lower() if ag_chain_2 is not None else None, ag_chain_3.lower() if ag_chain_3 is not None else None] and (l_chain in [ag_chain, ag_chain_2, ag_chain_3] or h_chain in [ag_chain, ag_chain_2, ag_chain_3])):
                             ag_chain_seq += amino_acid
-    if ag_chain_seq != '':
-        X = f'{h_chain_seq}:{l_chain_seq}:{ag_chain_seq}'
-    else:
-        X = f'{h_chain_seq}:{l_chain_seq}'
-    input_seq = format_sequence(X)
-    inputs = tokeniser(input_seq, return_tensors='pt')
+    X_ab = f'{h_chain_seq}:{l_chain_seq}'
+    C = [0] * len(h_chain_seq)
+    C.extend([1] * len(l_chain_seq))
 
-    return inputs
+    if ag_chain_seq != '':
+        X_ag = f'{X_ab}:{ag_chain_seq}'
+        C.extend([2] * len(ag_chain_seq))
+        #if '?' in X_ag:
+        #    print(pdb_file)
+        input_seq_ag = format_sequence(X_ag)
+        inputs_ag = tokeniser_ag(input_seq_ag, return_tensors='pt')['input_ids'][0]
+        #inputs = torch.cat((inputs, torch.Tensor([1]), inputs_ag))
+        inputs = inputs_ag #torch.cat((inputs, inputs_ag))
+    else:
+        input_seq_ab = format_sequence(X_ab)
+        inputs = tokeniser_ag(input_seq_ab, return_tensors='pt')['input_ids'][0]
+    return inputs, C
 
 def get_first_digit(filename):
     for char in filename:
@@ -235,24 +267,27 @@ def parse_pdb(file_path):
                 if fields[2] == 'CA': 
                     fields[-2] = '.'.join(fields[-2].split('.')[-2:]) if fields[-2].count('.') == 2 else fields[-2]
                     b_factor = float(fields[-2])
-
                     # Process heavy chain first
-                    if h_chain.upper() == chain_id.upper():
+                    if (chain_id == h_chain or (chain_id.upper() == h_chain and h_chain != l_chain and h_chain != ag_chain)):# and int(line[slice(23, 26)]) <= 112:
                         b_factors_heavy_chain.append(b_factor)
-
                     # Then light chain 
-                    elif l_chain.upper() == chain_id.upper():
+                    elif ((l_chain == chain_id.upper() and h_chain != l_chain) or (l_chain.lower() == chain_id and h_chain == l_chain)):# and int(line[slice(23, 26)]) <= 107:
                         b_factors_light_chain.append(b_factor)
-
                     # Finally antigen chains
-                    elif chain_id in [ag_chain, ag_chain_2, ag_chain_3]:
+                    elif (chain_id.upper() in [ag_chain, ag_chain_2, ag_chain_3] and l_chain not in [ag_chain, ag_chain_2, ag_chain_3] and h_chain not in [ag_chain, ag_chain_2, ag_chain_3]) or (chain_id in [ag_chain.lower() if ag_chain is not None else None, ag_chain_2.lower() if ag_chain_2 is not None else None, ag_chain_3.lower() if ag_chain_3 is not None else None] and (l_chain in [ag_chain, ag_chain_2, ag_chain_3] or h_chain in [ag_chain, ag_chain_2, ag_chain_3])):
                         b_factors_antigens.append(b_factor)
 
             elif line.startswith('ENDMDL'):
                 break
-
                 
     return b_factors_heavy_chain + b_factors_light_chain + b_factors_antigens
+
+def separate_tokenised_chains(tensor):
+    for i in range(1, len(tensor)):
+        if tensor[i] == 1:
+            return tensor[:i], tensor[i+1:] 
+    
+    return tensor, None 
 
 def sort_keys(keys):
     def res_id_sorting(key):

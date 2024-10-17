@@ -5,46 +5,73 @@ import torch
 
 from torch_geometric.loader import DataLoader
 from torch.utils.data import random_split
-from transformers import RoFormerForMaskedLM
+from transformers import BertModel, RoFormerModel
 
 from gcn_bf.dataset.dataset import GCNBfDataset
-from gcn_bf.utils.biology_utils import sort_keys
+from gcn_bf.utils.biology_utils import antibody_sequence_identity, sort_keys
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def get_dataloaders(path, device, mode='test', train_size=0.95, lm=None):
+def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_ag=None):
     if mode == 'test':
         shuffle = False
         batch_size = 1
     else:
         shuffle = True
-        batch_size = 8
+        batch_size = 1
         
     edge_data = torch.load(path+'edge_data.pt')
     edge_indices = edge_data['edge_index']
     edge_attributes = edge_data['edge_attr']
     X = torch.load(path+'gcn_inputs.pt')
     Y = torch.load(path+'b_factors.pt')
+    C = torch.load(path+'chain_inputs.pt')
     pdb_codes = np.load(path+'pdb_codes.npy')
 
-    dataset = GCNBfDataset(edge_indices, edge_attributes, X, Y, device=device, pdb=pdb_codes, lm=lm)
+    dataset = GCNBfDataset(edge_indices, edge_attributes, X, Y, device=device, pdb=pdb_codes, C=C, lm_ab=lm_ab, lm_ag=lm_ag)
     if mode == 'test':
         test_indices = np.load(path+'test_indices.npy')
     train_size = int(train_size * len(dataset))  
     test_size = len(dataset) - train_size
 
-    if mode == 'test':
-        train_dataset, test_dataset = [dataset[i] for i in range(len(dataset)) if i not in test_indices], [dataset[i] for i in test_indices]
-    else:
-        train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    if mode != 'test':
+        #train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+        train_indices = list(np.arange(len(dataset)))
+        test_indices = []
+
+        random_order = train_indices.copy()
+        np.random.shuffle(random_order)
+        for i in range(len(train_indices)):
+            test_idx = random_order[i]
+            if len(test_indices) >= test_size:
+                np.save(path+'test_indices.npy', np.array(test_indices))
+                break
+            add_to_test = True
+            for j in train_indices:     
+                if j == test_idx:
+                    continue
+                #identity_ab = antibody_sequence_identity(X[test_idx][:dataset.len_ab[test_idx]], X[j][:dataset.len_ab[j]])    
+                #identity_ag = antibody_sequence_identity(X[test_idx][dataset.len_ab[test_idx]:], X[j][dataset.len_ab[j]:])    
+                identity = np.zeros((3))
+                for k in range(3):
+                    identity[k] = antibody_sequence_identity(X[test_idx][C[test_idx]==k], X[j][C[test_idx]==k])    
+
+                #if identity_ab >= 0.6 or identity_ag >= 0.6:
+                if identity.any() >= 0.6:
+                    add_to_test = False
+                    break
+
+            if add_to_test:
+                print('Adding a sample to the test set.')
+                test_indices.append(test_idx)
+                train_indices.remove(test_idx)
+    print('Created a valid split, i.e., less than 0.9 training/test sequence identity.')
+    train_dataset, test_dataset = [dataset[i] for i in range(len(dataset)) if i not in test_indices], [dataset[i] for i in test_indices]
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     test_loader = DataLoader(test_dataset, batch_size=1)
 
-    if mode != 'test':
-        np.save(path+'test_indices.npy', np.array(test_dataset.indices))
-
-    return train_loader, test_loader, test_size, dataset
+    return train_loader, test_loader, len(test_loader), dataset
 
 def load_lstm_weights(model, path):
     with h5py.File(path, 'r') as f:
@@ -77,11 +104,14 @@ def load_lstm_weights(model, path):
 
     return model
 
-def load_transformer_weights(cssp=False):
-    if cssp:
-        model = RoFormerForMaskedLM.from_pretrained('alchemab/antiberta2-cssp')
+def load_transformer_weights(family='antibody', cssp=False):
+    if family == 'antibody':
+        if cssp:
+            model = RoFormerModel.from_pretrained('alchemab/antiberta2-cssp')
+        else:
+            model = RoFormerModel.from_pretrained('alchemab/antiberta2')
     else:
-        model = RoFormerForMaskedLM.from_pretrained('alchemab/antiberta2')
+        model = BertModel.from_pretrained('Rostlab/prot_bert')
 
     for name, param in model.named_parameters():
         param.requires_grad = False # Freezing parameters
@@ -130,7 +160,7 @@ def test(model, test_loader, test_size):
     test_loss = 0.0
     corr = 0.0
     for loader in test_loader:
-        pred = model(loader.x, loader.edge_index, loader.edge_attr)
+        pred = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)#, loader.len_ab, loader.len_ag)
         loss = torch.nn.MSELoss(reduction='mean')(torch.squeeze(pred), torch.squeeze(loader.y))
         test_loss += loader.num_graphs * loss.item() / test_size
         print(loader.pdb)
@@ -144,7 +174,7 @@ def train(model, optimiser, train_loader, train_size):
     tr_loss = 0.0
     for loader in train_loader:
         optimiser.zero_grad()
-        out = model(loader.x, loader.edge_index, loader.edge_attr)
+        out = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)#, loader.len_ab, loader.len_ag)
         loss = torch.nn.MSELoss(reduction='mean')(torch.squeeze(out), torch.squeeze(loader.y))
         tr_loss += loader.num_graphs * loss.item() / train_size 
         loss.backward()

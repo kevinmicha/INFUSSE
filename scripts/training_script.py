@@ -23,11 +23,13 @@ if torch.cuda.is_available():
     device = torch.device('cuda')
 else:
     device = torch.device('cpu')
+lm = None
 
 if args.lm == 'transformer':
     lm_dim = 1024
-    lm = load_transformer_weights(cssp=args.cssp)
-    train_loader, test_loader, test_size, dataset = get_dataloaders(DATA_DIR, device, mode='train', lm=lm)
+    lm_ab = load_transformer_weights(family='antibody', cssp=args.cssp)
+    lm = load_transformer_weights(family='general')
+    train_loader, test_loader, test_size, dataset = get_dataloaders(DATA_DIR, device, mode='train', lm_ab=lm_ab, lm_ag=lm)
 elif args.lm == 'lstm':
     input_dim = 26  
     lm_dim = 512 
@@ -42,8 +44,8 @@ model = GCN(
     in_channels=dataset.num_features,
     hidden_channels=args.hidden_channels,
     out_channels=dataset.out_channels,
-    lm=lm,
     lm_dim=lm_dim,
+    lm=lm,
 ).to(device)
 
 optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
