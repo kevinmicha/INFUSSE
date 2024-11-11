@@ -6,8 +6,8 @@ import scipy
 import torch
 import re
 
-from gcn_bf.config import DATA_DIR
-from gcn_bf.utils.biology_utils import encode_line, generate_one_hot_matrix, get_tokenised_sequence
+from gcn_bf.config import DATA_DIR, STRUCTURE_DIR
+from gcn_bf.utils.biology_utils import encode_line, generate_one_hot_matrix, get_first_digit, get_tokenised_sequence
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lm', type=str, default='transformer')
@@ -16,20 +16,22 @@ args = parser.parse_args()
 
 directory = DATA_DIR
 input_folder = directory + 'strides_outputs/'
+file_list = list(dict.fromkeys(sorted([file for folder in STRUCTURE_DIR for file in glob.glob(os.path.join(folder, '*.pdb')) if '_stripped' not in file], key=get_first_digit)))
 output_folder = directory + 'gcn_inputs/'
 pdb_codes = np.load(directory+'pdb_codes.npy')
 X_list = []
 C_list = []
 print(len(pdb_codes))
 
-for pdb in pdb_codes:
-    if args.lm == 'transformer':
-        X, C = get_tokenised_sequence(input_folder+pdb+'.txt', args.cssp)
-        X_list.append(X)
-        C_list.append(C)
-    else:
-        X = generate_one_hot_matrix(input_folder+pdb+'.txt')
-        X_list.append(torch.from_numpy(X))
+for file in file_list:
+    if file[-8:-4] in pdb_codes:
+        if args.lm == 'transformer':
+            X, C = get_tokenised_sequence(file, args.cssp)
+            X_list.append(X)
+            C_list.append(C)
+        else:
+            X = generate_one_hot_matrix(input_folder+file[-8:-4]+'.txt')
+            X_list.append(torch.from_numpy(X))
 
 torch.save(X_list, directory+'gcn_inputs.pt')
 torch.save(C_list, directory+'chain_inputs.pt')

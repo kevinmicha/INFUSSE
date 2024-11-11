@@ -38,7 +38,7 @@ for i, pdb in enumerate(pdb_codes):
         edge_index, edge_attr = from_scipy_sparse_matrix(thresholded_adjacency)
     else:
         edge_index, edge_attr = from_scipy_sparse_matrix(adjacency)
-    edge_attr = torch.tensor(edge_attr, dtype=torch.float) 
+    edge_attr = edge_attr.clone().to(torch.float)
     if edge_index.shape[-1] != edge_attr.shape[0] or Y[i].shape[0] != adjacency.toarray().shape[0] or X[i].shape[0] not in range(adjacency.toarray().shape[0]-10, adjacency.toarray().shape[0]+10):
         print('Error')
         print(pdb)

@@ -161,9 +161,8 @@ def get_tokenised_sequence(file_path, cssp=False):
     h_chain_seq = ''
     l_chain_seq = ''
     ag_chain_seq = ''
-    input_folder = STRUCTURE_DIR    
     
-    with open(input_folder+file_path[-8:-4]+'.pdb', 'r') as pdb_file:
+    with open(file_path, 'r') as pdb_file:
         for line in pdb_file:
             if line.find('AGCHAIN') != -1 or line.find('HCHAIN') != -1 or line.find('LCHAIN') != -1:
                 if line[line.find('AGCHAIN')+len('AGCHAIN')+1:line.find('AGCHAIN')+len('AGCHAIN')+5] != 'NONE':
@@ -183,14 +182,16 @@ def get_tokenised_sequence(file_path, cssp=False):
                     ag_chain_3 = None
                 h_chain = line[line.find('HCHAIN')+len('HCHAIN')+1]
                 l_chain = line[line.find('LCHAIN')+len('LCHAIN')+1]
-
+    if h_chain == l_chain == ag_chain:
+        ag_chain = None
+        
     if cssp:
         tokeniser_ab = RoFormerTokenizer.from_pretrained('alchemab/antiberta2-cssp')
     else:
         tokeniser_ab = RoFormerTokenizer.from_pretrained('alchemab/antiberta2')
     tokeniser_ag = BertTokenizer.from_pretrained('Rostlab/prot_bert', do_lower_case=False)
 
-    with open(input_folder+file_path[-8:-4]+'.pdb', 'r') as pdb_file:
+    with open(file_path, 'r') as pdb_file:
         for line in pdb_file:
             if line.startswith('ATOM'):
                 atom_type = line[12:16].strip()

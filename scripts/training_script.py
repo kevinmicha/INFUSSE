@@ -19,6 +19,10 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--epochs', type=int, default=500)
 args = parser.parse_args()
 
+log_file_path = '../log.txt'
+with open(log_file_path, 'a') as log_file:
+    log_file.write('Started')
+
 if torch.cuda.is_available():
     device = torch.device('cuda')
 else:
@@ -52,14 +56,18 @@ optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
 print(count_parameters(model))
 print(len(dataset))
+with open(log_file_path, 'a') as log_file:
+    log_file.write('Training is starting')
 
 best_val_acc = test_acc = 0
 times = []
-for epoch in range(1, args.epochs + 1):
-    start = time.time()
-    loss = train(model, optimiser, train_loader, len(dataset)-test_size)
-    tmp_test_acc, corr = test(model, test_loader, test_size)
-    log(Epoch=epoch, Loss=loss, Corr=corr, Test=tmp_test_acc)
-    times.append(time.time() - start)
+with open(log_file_path, 'a') as log_file:
+    for epoch in range(1, args.epochs + 1):
+        start = time.time()
+        loss = train(model, optimiser, train_loader, len(dataset)-test_size)
+        tmp_test_acc, corr = test(model, test_loader, test_size)
+        log_file.write(f'Epoch: {epoch}, Loss: {loss:.4f}, Corr: {corr:.4f}, Test Accuracy: {tmp_test_acc:.4f}, Time: {time.time() - start:.2f}s\n')
+        log(Epoch=epoch, Loss=loss, Corr=corr, Test=tmp_test_acc)
+        times.append(time.time() - start)
 print(f'Median time per epoch: {torch.tensor(times).median():.4f}s')
 torch.save(model, CHECKPOINTS_DIR+f'model_{args.graphs}_{args.lm}_features_hidden_channels_{args.hidden_channels}_lr_{args.lr}_epochs_{args.epochs}.pth')

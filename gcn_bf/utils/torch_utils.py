@@ -41,7 +41,9 @@ def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_a
         test_indices = []
 
         random_order = train_indices.copy()
+        np.random.seed(42)
         np.random.shuffle(random_order)
+        print(random_order)
         for i in range(len(train_indices)):
             test_idx = random_order[i]
             if len(test_indices) >= test_size:
@@ -55,10 +57,10 @@ def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_a
                 #identity_ag = antibody_sequence_identity(X[test_idx][dataset.len_ab[test_idx]:], X[j][dataset.len_ab[j]:])    
                 identity = np.zeros((3))
                 for k in range(3):
-                    identity[k] = antibody_sequence_identity(X[test_idx][C[test_idx]==k], X[j][C[test_idx]==k])    
+                    identity[k] = antibody_sequence_identity(X[test_idx][C[test_idx]==k][:125], X[j][C[test_idx]==k][:125])    
 
                 #if identity_ab >= 0.6 or identity_ag >= 0.6:
-                if identity.any() >= 0.6:
+                if identity.any() >= 0.7:
                     add_to_test = False
                     break
 

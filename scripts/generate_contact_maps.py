@@ -30,6 +30,9 @@ def compute_distance_matrix(file_path):
                     ag_chain_3 = None
                 h_chain = line[line.find('HCHAIN')+len('HCHAIN')+1]
                 l_chain = line[line.find('LCHAIN')+len('LCHAIN')+1]
+    if h_chain == l_chain == ag_chain:
+        ag_chain = None
+
     # Alpha-C coordinates 
     alpha_carbon_coordinates = []
     if h_chain:
@@ -87,14 +90,15 @@ def compute_distance_matrix(file_path):
 def save_distance_matrix(distance_matrix, output_file):
     scipy.sparse.save_npz(output_file, scipy.sparse.csr_matrix(distance_matrix))
 
-folder = '/Users/kevinmicha/Documents/all_structures/chothia_gcn'
+folder = '/Users/kevinmicha/Documents/all_structures/chothia_gcn_mice'
 file_list = sorted([file for file in glob.glob(os.path.join(folder, '*.pdb')) if '_H' not in file])
 threshold = 10.0
 
 for file in file_list:
     print(file[-8:-4])
-    #file ='/Users/kevinmicha/Documents/all_structures/chothia_gcn/8dmh.pdb'
+    #file ='/Users/kevinmicha/Documents/all_structures/chothia_gcn_mice/4gqp.pdb'
     distance_matrix = compute_distance_matrix(file)
     contact_map = np.where(distance_matrix<=threshold, 1, 0)
-    print(contact_map.shape)
+    #print(contact_map.shape)
+    #save_distance_matrix(distance_matrix, f'/Users/kevinmicha/Documents/all_structures/distance_matrices/{file[-8:-4]}.npz')
     save_distance_matrix(contact_map, f'/Users/kevinmicha/Documents/all_structures/contact_maps/{file[-8:-4]}.npz')

@@ -11,8 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--thr', type=int, default=100)
 args = parser.parse_args()
 
-folder = STRUCTURE_DIR
-file_list = list(dict.fromkeys(sorted([file for file in glob.glob(os.path.join(folder, '*.pdb')) if '_stripped' not in file], key=get_first_digit)))
+directory = STRUCTURE_DIR
+file_list = list(dict.fromkeys(sorted([file for folder in directory for file in glob.glob(os.path.join(folder, '*.pdb')) if '_stripped' not in file], key=get_first_digit)))
 
 pdb_codes = []
 b_factors = []
@@ -31,12 +31,22 @@ pathological += [
     ] # unbound, more than 2.5A resolution
 pathological += ['7uvl', '7xq8'] # unbound, 0A in SAbDab but more than 2.5 resolution in the PDB
 pathological +=  [    '7uow', '7xj6', '7xj8', '7xj9', '8saq', '8sar', '8sas', '8sau', '8sav',     '8saw', '8sax', '8say', '8saz', '8sb0', '8sb1', '8sb2', '8sb3', '8sb4',     '8sb5', '8d21', '8dmh', '8d7e', '8il3', '7x93', '7x94', '7x95', '7x96',     '8bcz', '8ek1', '8eka', '8id3', '8id4', '8id6', '8id8', '8id9', '7ru8',     '7ru5', '7e9o', '7ru4', '7x9y', '7vkt', '7ru3', '7xa3', '8g59', '8hs3',     '8c7h', '7u0q', '7u0x', '7wsc', '7xcz', '7xda', '7xdb', '7xdk', '7xk2',     '7wwi', '7wwj', '7wwk', '8f6e', '8f6f', '8f6h', '8f6i', '8f6j', '7wr9',   '8hhx', '8hhy', '8hhz', '7t5o', '8d48', '8hc2', '8hc3',     '8hc4', '8hc5', '8hc6', '8hc7', '8hc8', '8hc9', '8hca', '8hcb', '7wh8',     '7whb', '7whd', '7yar', '7wck', '7wcp', '7wcu', '7ykj', '7wti', '7wur',     '7wtf', '7wtg', '7wth', '7wtj', '7wtk', '8diu', '7x8w', '7x8y', '7x90',     '7x91', '7x92', '8dw2', '8dw3', '7wos', '7wop', '7woq', '7wor', '7wou',     '7wov', '7wow', '8e9y', '7t17', '7u9o', '7u9p', '8dvd', '7six', '7sj0',     '8dim', '7uot', '7uov', '7z12', '7wbh', '7yr1', '7y24', '7y26', '7y27',     '7yr0', '7zce', '7zcf', '7wrj', '8e7m', '7zlk', '7srr', '7xco', '7tjq',     '7tl0', '7xxl', '7sjn', '7sjo', '7xck', '7xcp', '8dad', '8dlr', '8dls', '8dpf', '8dpg', '8dph', '8dpi', '8dzh', '8dzi', '7usl', '7xw7',     '7zbu', '7upl', '7u0p', '7z3a', '7v23', '7v24', '7v27', '7wcd', '8cw9',     '7t9n', '7qti', '7qtj', '7qtk', '7wjy', '7ums', '7t0w', '7t0z', '7sk3',     '7sk4', '7sk8', '7sk9', '7wo4', '7wo5', '7wo7', '7woa', '7wob', '7woc',     '7wog', '7wp0', '7wj5', '7wjz', '7wk0', '7x6a', '7x1m', '7ran', '7wro',     '7wr8', '7xjl', '7xjk'] # bound, 0A in SAbDab but more than 2.5 resolution in the PDB
-pathological += ['5umn', '7jmp', '5bv7', '6ca6', '8dy5',  '7dm1', '3hi6', '7t25', '6kz0'] # missing residues
+pathological += ['3eyq', '5umn', '7jmp', '5bv7', '6ca6', '8dy5',  '7dm1', '3hi6', '7t25', '6kz0', '6n7u', '6amj', '8dm4', '8w0w', '7pkl', '6ffj'] # human, missing residues
+pathological += [
+    '7ryc', '7sww', '7swx', '7t2h', '7tn9', '7uja', '7um5', '7um6', '7um7', '7umm', '7umn',
+    '7upa', '7upb', '7upd', '7upk', '7ura', '7urc', '7urd', '7ure', '7urf', '7urv', '7urx',
+    '7uz4', '7uz5', '7uz6', '7uz7', '7uz8', '7uz9', '7uza', '7uzb', '7vfx', '7vgr', '7vgs',
+    '7vif', '7x5h', '7x7t', '7xbd', '7xms', '7xmt', '7xow', '7xox', '7y89', '7yac', '7yae',
+    '7yon', '7yoo', '7ys6', '8ct6', '8de6', '8dke', '8dkw', '8dkx', '8dl6', '8dl7', '8dl8',
+    '8dt3', '8dto', '8dwc', '8dwg', '8dy6', '8e9w', '8e9x', '8e9z', '8epa', '8fr6', '8g85',
+    '8g94', '8g9w', '8g9x', '8g9y', '8gas', '8gsc', '8gsd', '8gse', '8gsf', '8hbd', '8hcq', '8hcx'
+] # mice bound & unbound, 0A in SAbDab but more than 2.5 resolution in the PDB
+pathological += ['3okk'] # mice bound & unbound, missing residues
 
 for file in file_list:
     #file = '/Users/kevinmicha/Documents/all_structures/chothia_gcn/8qh0.pdb'
     print(file[-8:-4])
-    if os.path.isfile(CM_DIR+f'{file[-8:-4]}.npz') and file[-8:-4] not in pathological:
+    if os.path.isfile(ADJACENCIES_DIR+f'{file[-8:-4]}.npz') and file[-8:-4] not in pathological:
         try:
             amino_acids_data = parse_pdb(file)
             if amino_acids_data:
