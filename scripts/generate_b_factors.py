@@ -41,7 +41,7 @@ pathological += [
     '8dt3', '8dto', '8dwc', '8dwg', '8dy6', '8e9w', '8e9x', '8e9z', '8epa', '8fr6', '8g85',
     '8g94', '8g9w', '8g9x', '8g9y', '8gas', '8gsc', '8gsd', '8gse', '8gsf', '8hbd', '8hcq', '8hcx'
 ] # mice bound & unbound, 0A in SAbDab but more than 2.5 resolution in the PDB
-pathological += ['3okk'] # mice bound & unbound, missing residues
+pathological += ['3okk', '8iqq', '8iqp', '9aur'] # mice bound & unbound, missing residues
 
 for file in file_list:
     #file = '/Users/kevinmicha/Documents/all_structures/chothia_gcn/8qh0.pdb'

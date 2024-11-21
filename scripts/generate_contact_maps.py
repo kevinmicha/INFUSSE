@@ -92,13 +92,14 @@ def save_distance_matrix(distance_matrix, output_file):
 
 folder = '/Users/kevinmicha/Documents/all_structures/chothia_gcn_mice'
 file_list = sorted([file for file in glob.glob(os.path.join(folder, '*.pdb')) if '_H' not in file])
-threshold = 10.0
+threshold = 8.0 # 10.0
 
 for file in file_list:
     print(file[-8:-4])
-    #file ='/Users/kevinmicha/Documents/all_structures/chothia_gcn_mice/4gqp.pdb'
+    #file ='/Users/kevinmicha/Documents/all_structures/chothia_gcn_mice/8ytp.pdb'
     distance_matrix = compute_distance_matrix(file)
     contact_map = np.where(distance_matrix<=threshold, 1, 0)
     #print(contact_map.shape)
-    #save_distance_matrix(distance_matrix, f'/Users/kevinmicha/Documents/all_structures/distance_matrices/{file[-8:-4]}.npz')
+    #save_distance_matrix(np.where(distance_matrix == 0, 0, 1 / np.where(distance_matrix == 0, 1, distance_matrix)**2), f'/Users/kevinmicha/Documents/all_structures/distance_matrices/{file[-8:-4]}.npz')
+    #save_distance_matrix(np.exp(-distance_matrix**2/64), f'/Users/kevinmicha/Documents/all_structures/distance_matrices/{file[-8:-4]}.npz')
     save_distance_matrix(contact_map, f'/Users/kevinmicha/Documents/all_structures/contact_maps/{file[-8:-4]}.npz')
