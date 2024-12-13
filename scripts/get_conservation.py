@@ -13,7 +13,6 @@ print(test_indices)
 numbered_sequences = []
 
 for i, seq in enumerate(sequences):
-    print(i)
     heavy_seq, light_seq = seq.split(':')
 
     heavy_results = run_anarci([('heavy', heavy_seq)], scheme='chothia')
@@ -54,9 +53,9 @@ test_conservation_scores = []
 for seq in test_sequences:
     sequence_scores = {}
     for position, residue in seq.items():
-        if position in position_entropy:
+        if position in position_entropy and residue != '-':
             sequence_scores[position] = position_entropy[position]
-    print(sequence_scores)
+    #print(sequence_scores)
     test_conservation_scores.append(sequence_scores)
 
 with open(DATA_DIR+'conservation_scores.pkl', 'wb') as f:
