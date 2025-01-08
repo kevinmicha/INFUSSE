@@ -402,7 +402,8 @@ def preprocess_interpretability(errors, errors_seq, secondary, ds, heavy, light,
         paratope_m.append(get_paratope_members(paratope_epitope[i], len_h, len_l))
         epitope_m.append(get_epitope_members(paratope_epitope[i], delta_e_ag[i]))
         ds[i] = list(ds_dict.values())
-    
+        secondary_v[i] = list(np.concatenate((secondary[i][:len_h], secondary[i][heavy[i]:heavy[i]+len_l])))
+
         # Secondary structure classes (variable region only)
         converted_secondary = []
         for key, sec_value in zip(ds_dict.keys(), secondary_v[i]):

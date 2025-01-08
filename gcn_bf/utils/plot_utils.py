@@ -127,9 +127,9 @@ def plot_consecutive_secondary(delta_e, secondary, secondary_type='helix'):
     cdr_avg_delta_e = [avg['CDR'] for avg in avg_delta_e_per_M[::-1]]
     total_avg_delta_e = [avg['Total'] for avg in avg_delta_e_per_M[::-1]]
 
-    plt.plot(range(1, 13), fr_avg_delta_e, 'o-', label=r'FR', c='green')
-    plt.plot(range(1, 13), cdr_avg_delta_e, 'o-', label=r'CDR', c='red')
-    plt.plot(range(1, 13), total_avg_delta_e, 'o-', label=r'Total', c='blue')
+    plt.plot(range(1, 13), fr_avg_delta_e, 'o-', label='FR', c='green')
+    plt.plot(range(1, 13), cdr_avg_delta_e, 'o-', label='CDR', c='red')
+    plt.plot(range(1, 13), total_avg_delta_e, 'o-', label='Total', c='blue')
     plt.xlabel(f'Consecutive {secondary_type} (M)')
     plt.ylabel(r'Average $\Delta e$')
     plt.legend()
