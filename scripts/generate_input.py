@@ -21,17 +21,20 @@ output_folder = directory + 'gcn_inputs/'
 pdb_codes = np.load(directory+'pdb_codes.npy')
 X_list = []
 C_list = []
+X_ab_list = []
 print(len(pdb_codes))
 
 for file in file_list:
     if file[-8:-4] in pdb_codes:
         if args.lm == 'transformer':
-            X, C = get_tokenised_sequence(file, args.cssp)
+            X, C, X_ab = get_tokenised_sequence(file, args.cssp)
             X_list.append(X)
             C_list.append(C)
+            X_ab_list.append(X_ab)
         else:
             X = generate_one_hot_matrix(input_folder+file[-8:-4]+'.txt')
             X_list.append(torch.from_numpy(X))
 
 torch.save(X_list, directory+'gcn_inputs.pt')
 torch.save(C_list, directory+'chain_inputs.pt')
+torch.save(X_ab_list, directory+'sequences.pt')

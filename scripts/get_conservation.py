@@ -1,5 +1,7 @@
+import matplotlib.pyplot as plt 
 import numpy as np
 import pickle
+import re
 import torch
 
 from anarci import run_anarci
@@ -11,6 +13,19 @@ test_indices = np.load(DATA_DIR+'test_indices.npy')
 pdb_codes = np.load(DATA_DIR+'pdb_codes.npy')
 print(test_indices)
 numbered_sequences = []
+
+def sort_keys(items):
+    def res_id_sorting(item):
+        key = item[0]
+        match = re.match(r'([HL])(\d+)([A-Z]?)$', key)
+        chain = match.group(1)  # H or L
+        residue_number = int(match.group(2))  
+        insertion_code = match.group(3) or ''  # insertion code 
+        
+        return (chain, residue_number, insertion_code)
+
+    return sorted(items, key=res_id_sorting)
+
 
 for i, seq in enumerate(sequences):
     heavy_seq, light_seq = seq.split(':')
@@ -46,8 +61,16 @@ for position, residues in position_counts.items():
     entropy = -np.sum(probabilities * np.log(probabilities))
     position_entropy[position] = entropy
 
-for position, entropy in sorted(position_entropy.items()):
+positions = []
+entropies = []
+for position, entropy in sort_keys(position_entropy.items()):
     print(f'Position {position}: Entropy = {entropy:.3f}')
+    positions.append(position)
+    entropies.append(entropy)
+plt.plot(positions, entropies, '-')
+print(positions)
+print(entropies)
+plt.show()
 
 test_conservation_scores = []
 for seq in test_sequences:

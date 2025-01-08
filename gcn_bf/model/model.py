@@ -37,10 +37,11 @@ class DiffGCNLayer(MessagePassing):
         return x
 
 class GCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, lm_dim=1024, lm=None):
+    def __init__(self, in_channels, hidden_channels, out_channels, lm_dim=1024, lm=None, seq_only=False):
         super().__init__()
         self.lm_dim = lm_dim
         self.lm = lm
+        self.seq_only = seq_only
         self.aa_linear = torch.nn.Linear(in_channels, self.lm_dim, bias=False)
         self.c_linear = torch.nn.Linear(in_channels, self.lm_dim, bias=False)
         self.lm_linear = torch.nn.Linear(self.lm_dim, self.lm_dim, bias=True)
@@ -97,8 +98,12 @@ class GCN(torch.nn.Module):
             '''
         #x = self.sequence_linear_1(x)
         #x = self.sequence_linear_2(x)
-        x = self.conv1(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
-        #x = self.conv2(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
-        x = self.conv3(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)) + x_seq
+        if not self.seq_only:
+            x = self.conv1(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
+            #x = self.conv2(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)).relu()
+            x = self.conv3(x, torch.squeeze(edge_index), torch.squeeze(edge_weight)) 
+        else:
+            x = torch.zeros_like(x_seq, dtype=x_seq.dtype, device=x_seq.device)
+        x_tot = x + x_seq
 
-        return x
+        return x_tot, x

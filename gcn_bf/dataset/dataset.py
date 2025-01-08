@@ -25,7 +25,8 @@ class GCNBfDataset(Dataset):
             self.len_ab = []
             self.len_ag = []
             print('Generating embeddings with Transformer')
-            for x in X[:10]:
+            for i, x in enumerate(X):
+                print(i)
                 mask = x > 4
                 x_out = lm_ag(x[None,:].to(torch.int64), output_attentions=False, output_hidden_states=True)['hidden_states'][-1]
                 x_out = x_out[mask.unsqueeze(-1).expand_as(x_out)].view(x_out.size(0), -1, x_out.size(-1))
@@ -50,11 +51,23 @@ class GCNBfDataset(Dataset):
                 self.len_ag.append(x.size(0))
                 self.X.append(x.to(device).squeeze())
                 self.X_out.append(x_out.to(device).squeeze())
-            print('End of generation')
+
         self.C = [torch.Tensor(c).to(device) for c in C]
         self.Y = [y.to(device) for y in Y]
         self.pdb = pdb
         self.out_channels = 1
+
+        for i in range(len(self.X)):
+            x_dim = self.X[i].shape[0]
+            x_out_dim = self.X_out[i].shape[0]
+            y_dim = self.Y[i].shape[0]
+            c_dim = len(self.C[i])
+            if not (x_dim == x_out_dim == y_dim == c_dim):
+                print(f'Dimension mismatch. PDB {self.pdb[i]}:')
+                print(f'  X[{i}] dim: {x_dim}')
+                print(f'  X_out[{i}] dim: {x_out_dim}')
+                print(f' Y[{i}] dim: {y_dim}')
+                print(f'  C[{i}] dim: {c_dim}')
 
     def __len__(self):
         return len(self.X)

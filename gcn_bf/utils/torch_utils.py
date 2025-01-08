@@ -1,6 +1,7 @@
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
 import torch
 
 from torch_geometric.loader import DataLoader
@@ -41,7 +42,7 @@ def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_a
         test_indices = []
 
         random_order = train_indices.copy()
-        np.random.seed(42)
+        np.random.seed(0)
         np.random.shuffle(random_order)
         print(random_order)
         for i in range(len(train_indices)):
@@ -60,7 +61,7 @@ def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_a
                     identity[k] = antibody_sequence_identity(X[test_idx][C[test_idx]==k][:125], X[j][C[test_idx]==k][:125])    
 
                 #if identity_ab >= 0.6 or identity_ag >= 0.6:
-                if identity.any() >= 0.7:
+                if identity.any() >= 0.9:# or identity.all() <= 0.2:
                     add_to_test = False
                     break
 
@@ -106,6 +107,10 @@ def load_lstm_weights(model, path):
 
     return model
 
+def load_pickle(file_path):
+    with open(file_path, 'rb') as file:
+        return pickle.load(file)
+
 def load_transformer_weights(family='antibody', cssp=False):
     if family == 'antibody':
         if cssp:
@@ -123,9 +128,12 @@ def load_transformer_weights(family='antibody', cssp=False):
 
 @torch.no_grad()
 def plot_performance(model, loader, ca_index, cdr_positions, glob=False, res_dict=None, h_l=None, l_l=None, last=False):
-    pred = model(loader.x, loader.edge_index, loader.edge_attr)[ca_index]
-    y = loader.y[ca_index]
+    pred, pred_struct = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)
+    #pred = pred[ca_index]
+    #pred_struct = pred_struct[ca_index]
+    y = loader.y#[ca_index]
     l = h_l + l_l
+    list_of_errors = []
 
     if not glob:
         plt.plot(np.arange(len(torch.squeeze(y).numpy())), ((torch.squeeze(pred)-torch.squeeze(y))**2).numpy())
@@ -133,27 +141,36 @@ def plot_performance(model, loader, ca_index, cdr_positions, glob=False, res_dic
             plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
         plt.show()
     else:
-        for i, item in enumerate(l):
+        #for i, item in enumerate(l):
+        for i, item in enumerate(l+[str(i) for i in range(len(y)-len(l))]):
             if i < len(h_l):
                 item += 'H'
-            else:
+            elif i < len(l_l) and i >= len(l_l):
                 item += 'L'
-            if item in res_dict:
-                res_dict[item]['tot_b_factor'] += ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).numpy()
-                res_dict[item]['count'] += 1
             else:
-                res_dict[item] = {'tot_b_factor': ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).numpy(), 'count': 1}
+                item += 'AG'
+            if item in res_dict:
+                res_dict[item]['tot_error'] += ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).detach().cpu().numpy()
+                res_dict[item]['count'] += 1
+                res_dict[item]['struct_output'] += np.abs(torch.squeeze(pred_struct[i]).detach().cpu().numpy())
+            else:
+                res_dict[item] = {'tot_error': ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).detach().cpu().numpy(), 'struct_output': np.abs(torch.squeeze(pred_struct[i]).detach().cpu().numpy()), 'count': 1}
+            list_of_errors.append(((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).detach().cpu().numpy())
         if last: # last PDB
-            residue_ids = sort_keys(list(res_dict.keys()))
-            cdr_positions = [residue_ids.index(el) for el in ['26H', '32H', '52H', '56H', '95H', '102H']] + [residue_ids.index(el) for el in ['24L', '34L', '50L', '56L', '89L', '97L']]
-            b_factors = [res_dict[id_]['tot_b_factor'] / res_dict[id_]['count'] for id_ in residue_ids]
-            plt.plot(range(len(residue_ids)), b_factors, marker='o', linestyle='-')
-            for i in range(len(cdr_positions)//2):
-                plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
-            plt.xlabel('Residue index')
-            plt.ylabel('MSE')
-            plt.show()
-    return res_dict
+            print('Placeholder. Then uncomment everything after this')
+            #residue_ids = sort_keys(list(res_dict.keys()))
+            #cdr_positions = [residue_ids.index(el) for el in ['26H', '32H', '52H', '56H', '95H', '102H']] + [residue_ids.index(el) for el in ['24L', '34L', '50L', '56L', '89L', '97L']]
+            #tot_error = [res_dict[id_]['tot_error'] / res_dict[id_]['count'] for id_ in residue_ids]
+            #struct_output = [res_dict[id_]['struct_output'] / res_dict[id_]['count'] for id_ in residue_ids]
+            #plt.plot(range(len(residue_ids)), tot_error, marker='o', linestyle='-')
+            #for i in range(len(cdr_positions)//2):
+            #    plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
+            #print(residue_ids)
+            #print(tot_error)
+            #plt.xlabel('Residue index')
+            #plt.ylabel('MSE')
+            #plt.show()
+    return res_dict, list_of_errors
 
 
 @torch.no_grad()
@@ -162,7 +179,9 @@ def test(model, test_loader, test_size):
     test_loss = 0.0
     corr = 0.0
     for loader in test_loader:
-        pred = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)#, loader.len_ab, loader.len_ag)
+        pred = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)[0]#, loader.len_ab, loader.len_ag)
+        #print(pred)
+        #print(loader.y)
         loss = torch.nn.MSELoss(reduction='mean')(torch.squeeze(pred), torch.squeeze(loader.y))
         test_loss += loader.num_graphs * loss.item() / test_size
         print(loader.pdb)
@@ -171,13 +190,19 @@ def test(model, test_loader, test_size):
 
     return float(test_loss), float(corr)
 
-def train(model, optimiser, train_loader, train_size):
+def train(model, optimiser, train_loader, train_size, initial_weights=None):
     model.train()
     tr_loss = 0.0
     for loader in train_loader:
         optimiser.zero_grad()
-        out = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)#, loader.len_ab, loader.len_ag)
-        loss = torch.nn.MSELoss(reduction='mean')(torch.squeeze(out), torch.squeeze(loader.y))
+        out, struct_out = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)#, loader.len_ab, loader.len_ag)
+        
+        penalty_loss = 0.0
+        if initial_weights:
+            for name, param in model.named_parameters():
+                if param.requires_grad and 'sequence_linear' in name:
+                    penalty_loss += torch.sum((param - initial_weights[name]) ** 2)
+        loss = torch.nn.MSELoss(reduction='mean')(torch.squeeze(out), torch.squeeze(loader.y)) #+ 0.01 * penalty_loss #+ 0.01 * torch.sum(struct_out ** 2)
         tr_loss += loader.num_graphs * loss.item() / train_size 
         loss.backward()
         optimiser.step()

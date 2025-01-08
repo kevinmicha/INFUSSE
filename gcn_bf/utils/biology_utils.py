@@ -39,6 +39,41 @@ def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
 
     return (np.array(averages) - mean_) / std_dev_, unp
 
+def count_consecutive_secondary(lst, cdr_status, delta_e_flattened, M, valid_values, processed_indices):
+    counts = {'FR': 0, 'CDR': 0, 'Total': 0}
+    delta_e_sums = {'FR': 0, 'CDR': 0, 'Total': 0}
+    delta_e_counts = {'FR': 0, 'CDR': 0, 'Total': 0}
+
+    i = 0
+    while i <= len(lst) - M:
+        segment = lst[i:i+M]
+        if all(val in valid_values for val in segment) and all(idx not in processed_indices for idx in range(i, i+M)):
+            region_type = 'FR' if cdr_status[i] == 0 else 'CDR'
+            counts[region_type] += 1
+            counts['Total'] += 1
+
+            # Add corresponding delta_e values
+            delta_e_segment = delta_e_flattened[i:i+M]
+            delta_e_sums[region_type] += sum(delta_e_segment)
+            delta_e_sums['Total'] += sum(delta_e_segment)
+            delta_e_counts[region_type] += M
+            delta_e_counts['Total'] += M
+
+            # Mark indices as processed
+            processed_indices.update(range(i, i+M))
+            i += M  # skip this segment
+        else:
+            i += 1  # increment and check the next segment
+
+    # Average delta_e 
+    avg_delta_e = {
+        'FR': delta_e_sums['FR'] / delta_e_counts['FR'] if delta_e_counts['FR'] > 0 else 0,
+        'CDR': delta_e_sums['CDR'] / delta_e_counts['CDR'] if delta_e_counts['CDR'] > 0 else 0,
+        'Total': delta_e_sums['Total'] / delta_e_counts['Total'] if delta_e_counts['Total'] > 0 else 0,
+    }
+
+    return counts, avg_delta_e
+
 def encode_line(line, amino_acids, secondary_structure):
     '''
     Generating one-hot encoded entry
@@ -86,11 +121,11 @@ def extract_list_of_residues(file_path):
         for line in pdb_file:
             fields = re.split(r'\s+', line.strip())
             if fields[2] == 'CA':
-                if line.startswith('ATOM') and h_chain.upper() == line[slice(21, 22)] and int(line[slice(23, 26)]) <= 112:
+                if line.startswith('ATOM') and (h_chain == line[slice(21, 22)] or (line[slice(21, 22)].upper() == h_chain and h_chain != l_chain)):# and int(line[slice(23, 26)]) <= 112:
                     h_res_list.append(fields[5])
                     h_idx_list.append(ca_index)
                     ca_index += 1
-                elif line.startswith('ATOM') and (l_chain.upper() == line[slice(21, 22)]) and int(line[slice(23, 26)]) <= 107:
+                elif line.startswith('ATOM') and ((line[slice(21, 22)].upper() == l_chain and h_chain != l_chain) or (line[slice(21, 22)] == l_chain.lower() and h_chain == l_chain)):# and int(line[slice(23, 26)]) <= 107:
                     l_res_list.append(fields[5])
                     l_idx_list.append(ca_index)
                     ca_index += 1
@@ -135,7 +170,7 @@ def generate_one_hot_matrix(file_path):
     '''
 
     amino_acids = [' ', 'ASP', 'GLY', 'SEC', 'LEU', 'ASN', 'THR', 'LYS', 'HIS', 'TYR', 'TRP', 'CYS', 'PRO', 'VAL', 'SER', 'PYL', 'ILE', 'GLU', 'PHE', 'XAA', 'GLN', 'ALA', 'ASX', 'GLX', 'ARG', 'MET']
-    secondary_structure = ['310Helix', 'AlphaHelix', 'Bridge', 'Coil', 'Strand', 'Turn']
+    secondary_structure = ['310Helix', 'PiHelix', 'AlphaHelix', 'Bridge', 'Coil', 'Strand', 'Turn']
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -146,6 +181,44 @@ def generate_one_hot_matrix(file_path):
         for i, line in enumerate(valid_lines):
             X[i] = encode_line(line, amino_acids, secondary_structure)
     return X
+
+def generate_secondary(file_path):
+    '''
+    Reading and extracting secondary structure from STRIDES files
+    '''
+    ss_pos = 6
+    secondary_structure = ['310Helix', 'PiHelix', 'AlphaHelix', 'Bridge', 'Coil', 'Strand', 'Turn']
+
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        valid_lines = [line for line in lines if line.startswith('ASG')]
+        secondary = [secondary_structure.index(line.split()[ss_pos]) for line in valid_lines]
+
+    return secondary
+
+def get_epitope_members(data, errors_ag):
+    if data:
+        epitope = [1 if i in data['epitope'] else 0 for i in range(len(errors_ag))]
+    else:
+        # unbound
+        epitope = []
+    return epitope    
+
+def get_first_digit(filename):
+    for char in filename:
+        if char.isdigit():
+            return int(char)
+    return -1 
+
+def get_paratope_members(paratope_data, len_h, len_l):
+    if paratope_data:
+        heavy_paratope = [1 if i in paratope_data['heavy_paratope'] else 0 for i in range(len_h)]
+        light_paratope = [1 if i in paratope_data['light_paratope'] else 0 for i in range(len_l)]
+    else:
+        # unbound
+        heavy_paratope = [2 for i in range(len_h)]
+        light_paratope = [2 for i in range(len_l)]
+    return heavy_paratope + light_paratope
 
 def get_tokenised_sequence(file_path, cssp=False):
     aa_pos = 1
@@ -225,13 +298,40 @@ def get_tokenised_sequence(file_path, cssp=False):
     else:
         input_seq_ab = format_sequence(X_ab)
         inputs = tokeniser_ag(input_seq_ab, return_tensors='pt')['input_ids'][0]
-    return inputs, C
+    return inputs, C, X_ab
 
-def get_first_digit(filename):
-    for char in filename:
-        if char.isdigit():
-            return int(char)
-    return -1 
+def get_antigen_only(lists, heavy, light):
+    lists_ag = [lists[i][heavy[i]+light[i]:] for i in range(len(lists))]
+    
+    return lists_ag
+
+def get_variable_region_only(lists, heavy, light, heavy_v, light_v):
+    lists_v = [list(np.concatenate((lists[i][:heavy_v[i]], lists[i][heavy[i]:heavy[i] + light_v[i]]))) for i in range(len(lists))]
+    
+    return lists_v
+
+def is_in_cdr(position, chain_type):
+    # Heavy chain CDR ranges
+    heavy_cdr_ranges = [
+        range(26, 33),  # CDR1: 26-32 inclusive
+        range(52, 57),  # CDR2: 52-56 inclusive
+        range(95, 103)  # CDR3: 95-102 inclusive
+    ]
+    # Light chain CDR ranges
+    light_cdr_ranges = [
+        range(24, 35),  # CDR1: 24-34 inclusive
+        range(50, 57),  # CDR2: 50-56 inclusive
+        range(89, 98)   # CDR3: 89-97 inclusive
+    ]
+    # Parse position into numeric part and optional letter suffix (e.g., "100A")
+    numeric_part = int(''.join(filter(str.isdigit, position)))
+    
+    # Check ranges based on chain type
+    if chain_type == 'H':
+        return any(numeric_part in cdr_range for cdr_range in heavy_cdr_ranges)
+    elif chain_type == 'L':
+        return any(numeric_part in cdr_range for cdr_range in light_cdr_ranges)
+    return False
 
 def parse_pdb(file_path):
     b_factors_heavy_chain = []
@@ -282,6 +382,44 @@ def parse_pdb(file_path):
                 break
                 
     return b_factors_heavy_chain + b_factors_light_chain + b_factors_antigens
+
+def preprocess_interpretability(errors, errors_seq, secondary, ds, heavy, light, paratope_epitope):
+    secondary_v = secondary.copy()
+    # Computing delta_e
+    heavy_v = [] # Only variable region
+    light_v = [] # Only variable region
+    paratope_m = []
+    epitope_m = []
+    delta_e = [[abs(e - es) for e, es in zip(e_list, s_list)] for e_list, s_list in zip(errors, errors_seq)]
+    delta_e_ag = get_antigen_only(delta_e, heavy, light)
+
+    for i, ds_dict in enumerate(ds):
+        len_h = len([k for k in ds_dict if k.startswith('H')]) # HC variable region
+        len_l = len([k for k in ds_dict if k.startswith('L')]) # LC variable region
+        heavy_v.append(len_h)
+        light_v.append(len_l)
+        
+        paratope_m.append(get_paratope_members(paratope_epitope[i], len_h, len_l))
+        epitope_m.append(get_epitope_members(paratope_epitope[i], delta_e_ag[i]))
+        ds[i] = list(ds_dict.values())
+    
+        # Secondary structure classes (variable region only)
+        converted_secondary = []
+        for key, sec_value in zip(ds_dict.keys(), secondary_v[i]):
+            position = key[1:]  # Position (e.g., '26', '100A')
+            chain_type = key[0]  # Chain type ('H', 'L')
+            cdr_is = is_in_cdr(position, chain_type)
+            if sec_value == 0 and cdr_is:
+                converted_secondary.append(3)
+            elif sec_value == 1 and cdr_is:
+                converted_secondary.append(4)
+            elif sec_value == 2 and cdr_is:
+                converted_secondary.append(5)
+            else:
+                converted_secondary.append(sec_value)
+        secondary_v[i] = converted_secondary
+
+    return delta_e, secondary_v, ds, heavy_v, light_v, epitope_m, paratope_m
 
 def separate_tokenised_chains(tensor):
     for i in range(1, len(tensor)):
