@@ -75,7 +75,7 @@ def extract_paratope_epitope(pdb_file_path, pdb_codes):
 
                                 if not small_antigen:
                                     absolute_residue_number = residue_numbering.get((antigen_chain.id+str(residue_2.id[1]) + residue_2.id[2]).strip())
-                                    if absolute_residue_number is not None and absolute_residue_number not in ag_interaction_residues:
+                                    if residue_1.id[0] == ' ' and absolute_residue_number is not None and absolute_residue_number not in ag_interaction_residues:
                                         ag_interaction_residues.append(absolute_residue_number)
                                 break
         return ab_interaction_residues, ag_interaction_residues
