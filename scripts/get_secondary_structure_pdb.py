@@ -165,7 +165,7 @@ def process_test_set(test_indices_file, pdb_codes_file, output_file):
 def main():
     test_indices_file = DATA_DIR + 'test_indices.npy'
     pdb_codes_file = DATA_DIR + 'pdb_codes.npy'
-    output_file = DATA_DIR + 'secondary_ag.pkl'
+    output_file = DATA_DIR + 'secondary_full.pkl'
 
     process_test_set(test_indices_file, pdb_codes_file, output_file)
 
