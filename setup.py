@@ -24,10 +24,10 @@ setup(
     version='1.0',
     author='Kevin Michalewicz',
     author_email='k.michalewicz22@imperial.ac.uk',
-    description='Node regression framework with Graph Convolutional Networks.',
+    description='Node regression framework with Large Language Models and Graph Convolutional Networks.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=['gcn_bf', 'gcn_bf.dataset', 'gcn_bf.model', 'gcn_bf.utils'],
-    install_requires=['h5py', 'matplotlib', 'numpy', 'pandas', 'requests', 'rjieba', 'scikit-learn', 'scipy', 'torch', 'torch_geometric', 'transformers'],
+    install_requires=['logomaker', 'matplotlib', 'numpy', 'pandas', 'requests', 'scikit-learn', 'scipy', 'torch', 'torch_geometric', 'transformers'],
     cmdclass={'test': PyTest}
 )

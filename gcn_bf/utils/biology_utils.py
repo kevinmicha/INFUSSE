@@ -27,6 +27,85 @@ def antibody_sequence_identity(seq1, seq2):
     
     return matches / len(valid_aa)
 
+def bootstrap_test(delta_e, labels, ind_class='secondary_ab', B=100000):
+    """
+    Performs pairwise bootstrap hypothesis tests to compare the means of multiple classes.
+
+    Parameters
+    ----------
+    delta_e: list of lists
+        Observed values for each amino acid residue across complexes.
+    labels: list of lists
+        Labels for each residue, same shape as delta_e.
+    ind_class: str
+        Attribute for which the mean of delta_e is meant to be tested.
+    B: int
+        Number of bootstrap resamples (default 100000).
+    """
+    delta_e_flat = []
+    labels_flat = []
+
+    for delta_e_sublist, label_sublist in zip(delta_e, labels):
+        if len(delta_e_sublist) == len(label_sublist):
+            delta_e_flat.extend(delta_e_sublist)
+            labels_flat.extend(label_sublist)
+    delta_e_flat = np.array(delta_e_flat)
+    labels_flat = np.array(labels_flat)
+
+    if ind_class == 'cdr_status':
+        labels_flat = [1 if sec in [3, 4, 5] else 0 for sec in labels_flat]  
+        label_names = ['FR', 'CDR']
+    elif ind_class == 'entropy':
+        labels_flat = [0 if 0 <= ent <= 1 else 1 if 1 < ent <= 2 else 2 for ent in labels_flat]
+        label_names = ['0-1', '1-2', '>2']
+    elif ind_class == 'secondary_ab':
+        label_names = ['Helix (FR)', 'Strand (FR)', 'Loop (FR)', 'Helix (CDR)', 'Strand (CDR)', 'Loop (CDR)']
+    elif ind_class == 'secondary_ag':
+        label_names = ['Helix', 'Strand', 'Loop']
+    elif ind_class == 'paratope':
+        label_names = ['Non-paratope', 'Paratope']
+    elif ind_class == 'epitope':
+        label_names = ['Non-epitope', 'Epitope']
+
+    unique_labels = np.unique(labels_flat)
+    if ind_class in ['epitope', 'paratope']:
+        unique_labels = np.array([0, 1])
+    means = []
+
+    for label in unique_labels:
+        means.append((label, np.mean(delta_e_flat[labels_flat == label])))
+
+    means.sort(key=lambda x: x[1], reverse=True)
+    sorted_labels = [x[0] for x in means]
+
+    for i in range(len(sorted_labels) - 1):
+        label_high = sorted_labels[i]
+        label_low = sorted_labels[i + 1]
+
+        delta_e_high = delta_e_flat[labels_flat == label_high]
+        delta_e_low = delta_e_flat[labels_flat == label_low]
+
+        N_high = len(delta_e_high)
+        N_low = len(delta_e_low)
+
+        mu_high = np.mean(delta_e_high)
+        mu_low = np.mean(delta_e_low)
+
+        t_obs = mu_high - mu_low
+        t_b = []
+
+        for _ in range(B):
+            delta_e_high_b = np.random.choice(delta_e_flat, size=N_high, replace=True)
+            delta_e_low_b = np.random.choice(delta_e_flat, size=N_low, replace=True)
+            t_b.append(np.mean(delta_e_high_b) - np.mean(delta_e_low_b))
+
+        p_value = np.sum(np.array(t_b) >= t_obs) / B
+
+        if p_value:
+            print(f'Difference of means between {label_names[label_high]} and {label_names[label_low]}: {t_obs} (p-value = {p_value}).')
+        else:
+            print(f'Difference of means between {label_names[label_high]} and {label_names[label_low]}: {t_obs} (p-value < {1/B}).')
+
 def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
     unp = False
     if any(b_fact_element > b_factor_thr or b_fact_element < 0 for b_fact_element in b_amino_acids):

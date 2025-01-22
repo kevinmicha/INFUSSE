@@ -8,6 +8,7 @@ pip install .
 ```
 
 List of dependencies:
+* `logomaker`
 * `matplotlib`
 * `numpy`
 * `pandas`

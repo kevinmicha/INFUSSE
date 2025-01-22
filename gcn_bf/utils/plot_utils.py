@@ -19,7 +19,7 @@ def boxplot_delta_e(delta_e, ind, ind_class='secondary'):
 
     plt.figure()
     if ind_class == 'secondary':
-        data['Secondary'] = data['Class'].apply(lambda x: 'Strand (FR)' if x in [1] else 'Irregular (FR)' if x in [2] else 'Helix (FR)' if x in [0] else 'Strand (CDR)' if x in [4] else 'Irregular (CDR)' if x in [5] else 'Helix (CDR)')
+        data['Secondary'] = data['Class'].apply(lambda x: 'Strand (FR)' if x in [1] else 'Loop (FR)' if x in [2] else 'Helix (FR)' if x in [0] else 'Strand (CDR)' if x in [4] else 'Loop (CDR)' if x in [5] else 'Helix (CDR)')
         data.boxplot(column='Value', by=ind_class.title(), grid=False, showmeans=True, showfliers=False)
     elif ind_class == 'cdr_status':
         data['CDR status'] = data['Class'].apply(lambda x: 'FR' if x == 0 else 'CDR')
@@ -47,7 +47,7 @@ def boxplot_delta_e(delta_e, ind, ind_class='secondary'):
     plt.ylabel('$\Delta$e')
     plt.show()
 
-def plot_consecutive_secondary(delta_e, secondary, secondary_type='helix'):
+def plot_consecutive_secondary(delta_e, secondary, max_M=12, secondary_type='helix'):
     delta_e_flattened = []
     secondary_flattened = []
 
@@ -101,7 +101,7 @@ def plot_consecutive_secondary(delta_e, secondary, secondary_type='helix'):
         valid_values = {2, 5}
     processed_indices = set()
 
-    for M in range(12, 0, -1):
+    for M in range(max_M, 0, -1):
         counts, avg_delta_e = count_sequences_and_average_delta_e(
             secondary_flattened, cdr_status, delta_e_flattened, M, valid_values, processed_indices
         )
@@ -115,9 +115,9 @@ def plot_consecutive_secondary(delta_e, secondary, secondary_type='helix'):
     cdr_counts = [counts['CDR'] for counts in consec_counts[::-1]]
     total_counts = [counts['Total'] for counts in consec_counts[::-1]]
 
-    plt.plot(range(1, 13), fr_counts, 'o-', label='FR', c='green')
-    plt.plot(range(1, 13), cdr_counts, 'o-', label='CDR', c='red')
-    plt.plot(range(1, 13), total_counts, 'o-', label='Total', c='blue')
+    plt.plot(range(1, max_M+1), fr_counts, 'o-', label='FR', c='green')
+    plt.plot(range(1, max_M+1), cdr_counts, 'o-', label='CDR', c='red')
+    plt.plot(range(1, max_M+1), total_counts, 'o-', label='Total', c='blue')
     plt.xlabel(f'Consecutive {secondary_type} (M)')
     plt.ylabel('Counts')
     plt.legend()
@@ -127,9 +127,9 @@ def plot_consecutive_secondary(delta_e, secondary, secondary_type='helix'):
     cdr_avg_delta_e = [avg['CDR'] for avg in avg_delta_e_per_M[::-1]]
     total_avg_delta_e = [avg['Total'] for avg in avg_delta_e_per_M[::-1]]
 
-    plt.plot(range(1, 13), fr_avg_delta_e, 'o-', label='FR', c='green')
-    plt.plot(range(1, 13), cdr_avg_delta_e, 'o-', label='CDR', c='red')
-    plt.plot(range(1, 13), total_avg_delta_e, 'o-', label='Total', c='blue')
+    plt.plot(range(1, max_M+1), fr_avg_delta_e, 'o-', label='FR', c='green')
+    plt.plot(range(1, max_M+1), cdr_avg_delta_e, 'o-', label='CDR', c='red')
+    plt.plot(range(1, max_M+1), total_avg_delta_e, 'o-', label='Total', c='blue')
     plt.xlabel(f'Consecutive {secondary_type} (M)')
     plt.ylabel(r'Average $\Delta e$')
     plt.legend()

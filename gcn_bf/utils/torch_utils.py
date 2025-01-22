@@ -11,6 +11,8 @@ from transformers import BertModel, RoFormerModel
 from gcn_bf.dataset.dataset import GCNBfDataset
 from gcn_bf.utils.biology_utils import antibody_sequence_identity, sort_keys
 
+from gcn_bf.config import DATA_DIR
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -74,7 +76,7 @@ def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_a
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     test_loader = DataLoader(test_dataset, batch_size=1)
 
-    return train_loader, test_loader, len(test_loader), dataset
+    return train_loader, test_loader, len(test_loader), DataLoader(dataset, batch_size=1)
 
 def load_lstm_weights(model, path):
     with h5py.File(path, 'r') as f:
@@ -129,9 +131,9 @@ def load_transformer_weights(family='antibody', cssp=False):
 @torch.no_grad()
 def plot_performance(model, loader, ca_index, cdr_positions, glob=False, res_dict=None, h_l=None, l_l=None, last=False):
     pred, pred_struct = model(loader.x, loader.x_out, loader.edge_index, loader.edge_attr, loader.c)
-    #pred = pred[ca_index]
-    #pred_struct = pred_struct[ca_index]
-    y = loader.y#[ca_index]
+    pred = pred[ca_index]
+    pred_struct = pred_struct[ca_index]
+    y = loader.y[ca_index]
     l = h_l + l_l
     list_of_errors = []
 
@@ -141,14 +143,16 @@ def plot_performance(model, loader, ca_index, cdr_positions, glob=False, res_dic
             plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
         plt.show()
     else:
-        #for i, item in enumerate(l):
-        for i, item in enumerate(l+[str(i) for i in range(len(y)-len(l))]):
+        for i, item in enumerate(l):
+        #for i, item in enumerate(l+[str(i) for i in range(len(y)-len(l))]):
             if i < len(h_l):
                 item += 'H'
-            elif i < len(l_l) and i >= len(l_l):
-                item += 'L'
             else:
-                item += 'AG'
+                item += 'L'
+            #elif i < len(l_l) and i >= len(h_l):
+            #    item += 'L'
+            #else:
+            #    item += 'AG'
             if item in res_dict:
                 res_dict[item]['tot_error'] += ((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).detach().cpu().numpy()
                 res_dict[item]['count'] += 1
@@ -158,19 +162,19 @@ def plot_performance(model, loader, ca_index, cdr_positions, glob=False, res_dic
             list_of_errors.append(((torch.squeeze(pred[i])-torch.squeeze(y[i]))**2).detach().cpu().numpy())
         if last: # last PDB
             print('Placeholder. Then uncomment everything after this')
-            #residue_ids = sort_keys(list(res_dict.keys()))
-            #cdr_positions = [residue_ids.index(el) for el in ['26H', '32H', '52H', '56H', '95H', '102H']] + [residue_ids.index(el) for el in ['24L', '34L', '50L', '56L', '89L', '97L']]
-            #tot_error = [res_dict[id_]['tot_error'] / res_dict[id_]['count'] for id_ in residue_ids]
-            #struct_output = [res_dict[id_]['struct_output'] / res_dict[id_]['count'] for id_ in residue_ids]
+            residue_ids = sort_keys(list(res_dict.keys()))
+            cdr_positions = [residue_ids.index(el) for el in ['26H', '32H', '52H', '56H', '95H', '102H']] + [residue_ids.index(el) for el in ['24L', '34L', '50L', '56L', '89L', '97L']]
+            tot_error = [res_dict[id_]['tot_error'] / res_dict[id_]['count'] for id_ in residue_ids]
+            struct_output = [res_dict[id_]['struct_output'] / res_dict[id_]['count'] for id_ in residue_ids]
             #plt.plot(range(len(residue_ids)), tot_error, marker='o', linestyle='-')
             #for i in range(len(cdr_positions)//2):
             #    plt.axvspan(cdr_positions[2*i], cdr_positions[2*i+1], alpha=0.1, color='green')
-            #print(residue_ids)
-            #print(tot_error)
+            print(residue_ids)
+            print(tot_error)
             #plt.xlabel('Residue index')
             #plt.ylabel('MSE')
             #plt.show()
-    return res_dict, list_of_errors
+    return res_dict, list_of_errors, y, pred
 
 
 @torch.no_grad()
