@@ -61,91 +61,108 @@ def classify_residues_for_chains(pdb_content, h_chain, l_chain, ag_chain, ag_cha
     heavy_chain_structure = []
     light_chain_structure = []
     ag_chain_structure = []
-    prev_res_seq = 0
+
+    seen_residues = set()
 
     for line in pdb_content.splitlines():
-        record_type = line[:6].strip()
-        if record_type == 'ATOM':
+        if line.startswith('ATOM'):
             atom_name = line[12:16].strip()
-            if atom_name == 'CA': 
+            if atom_name == 'CA':
                 chain_id = line[21]
-                try:
-                    res_seq = line[22:27].strip()
-                    if chain_id == h_chain and prev_res_seq != res_seq:
-                        if res_seq in helix_residues[h_chain]:
-                            heavy_chain_structure.append(0)
-                        elif res_seq in strand_residues[h_chain]:
-                            heavy_chain_structure.append(1)
-                        else:
-                            heavy_chain_structure.append(2)
-                    prev_res_seq = res_seq
-                except ValueError:
-                    continue
-    prev_res_seq = 0
-    for line in pdb_content.splitlines():
-        record_type = line[:6].strip()
-        if record_type == 'ATOM':
-            atom_name = line[12:16].strip()
-            if atom_name == 'CA': 
-                chain_id = line[21]
-                try:
-                    res_seq = line[22:27].strip()
-                    print(res_seq)
-                    if chain_id == l_chain and prev_res_seq != res_seq:
-                        if res_seq in helix_residues[l_chain]:
-                            light_chain_structure.append(0)
-                        elif res_seq in strand_residues[l_chain]:
-                            light_chain_structure.append(1)
-                        else:
-                            light_chain_structure.append(2)
-                    prev_res_seq = res_seq
-                except ValueError:
-                    continue
-    prev_res_seq = 0
-    for line in pdb_content.splitlines():
-        record_type = line[:6].strip()
-        if record_type == 'ATOM':
-            atom_name = line[12:16].strip()
-            if atom_name == 'CA': 
-                chain_id = line[21]
-                try:
-                    res_seq = line[22:27].strip()
-                    if chain_id in [ag_chain, ag_chain_2, ag_chain_3] and prev_res_seq != res_seq:
-                        if res_seq in helix_residues[chain_id]:
-                            ag_chain_structure.append(0)
-                        elif res_seq in strand_residues[chain_id]:
-                            ag_chain_structure.append(1)
-                        else:
-                            ag_chain_structure.append(2)
-                    prev_res_seq = res_seq
-                except ValueError:
-                    continue
+                res_seq = line[22:26].strip()
+                ins_code = line[26].strip()
+                res_id = f"{res_seq}{ins_code}"
 
+                if chain_id == h_chain and (chain_id, res_id) not in seen_residues:
+                    if res_id in helix_residues[h_chain]:
+                        heavy_chain_structure.append(0)
+                    elif res_id in strand_residues[h_chain]:
+                        heavy_chain_structure.append(1)
+                    else:
+                        heavy_chain_structure.append(2)
+                    seen_residues.add((chain_id, res_id))
 
+    for line in pdb_content.splitlines():
+        if line.startswith('ATOM'):
+            atom_name = line[12:16].strip()
+            if atom_name == 'CA':
+                chain_id = line[21]
+                res_seq = line[22:26].strip()
+                ins_code = line[26].strip()
+                res_id = f"{res_seq}{ins_code}"
+
+                if chain_id == l_chain and (chain_id, res_id) not in seen_residues:
+                    if res_id in helix_residues[l_chain]:
+                        light_chain_structure.append(0)
+                    elif res_id in strand_residues[l_chain]:
+                        light_chain_structure.append(1)
+                    else:
+                        light_chain_structure.append(2)
+                    seen_residues.add((chain_id, res_id))
+
+    for line in pdb_content.splitlines():
+        if line.startswith('ATOM'):
+            atom_name = line[12:16].strip()
+            if atom_name == 'CA':
+                chain_id = line[21]
+                res_seq = line[22:26].strip()
+                ins_code = line[26].strip()
+                res_id = f"{res_seq}{ins_code}"
+
+                if chain_id in [ag_chain, ag_chain_2, ag_chain_3] and (chain_id, res_id) not in seen_residues:
+                    if res_id in helix_residues[chain_id]:
+                        ag_chain_structure.append(0)
+                    elif res_id in strand_residues[chain_id]:
+                        ag_chain_structure.append(1)
+                    else:
+                        ag_chain_structure.append(2)
+                    seen_residues.add((chain_id, res_id))
+    print(len(heavy_chain_structure + light_chain_structure + ag_chain_structure))
     return heavy_chain_structure + light_chain_structure + ag_chain_structure
 
+
 def parse_pdb_content_for_ss(pdb_content, h_chain, l_chain, ag_chain, ag_chain_2, ag_chain_3):
+    from string import ascii_uppercase
+
     helix_residues = {h_chain: set(), l_chain: set(), ag_chain: set(), ag_chain_2: set(), ag_chain_3: set()}
     strand_residues = {h_chain: set(), l_chain: set(), ag_chain: set(), ag_chain_2: set(), ag_chain_3: set()}
+
+    def generate_res_ids(start_num, start_ins, end_num, end_ins):
+        """Generate list of residue ids like '100H', '100I', ..., '100L'"""
+        if start_num != end_num:
+            # fallback to numeric range if numbers differ
+            return [f"{i}" for i in range(start_num, end_num + 1)]
+        else:
+            start_index = ascii_uppercase.index(start_ins)
+            end_index = ascii_uppercase.index(end_ins)
+            return [f"{start_num}{ascii_uppercase[i]}" for i in range(start_index, end_index + 1)]
 
     for line in pdb_content.splitlines():
         record_type = line[:6].strip()
         if record_type == 'HELIX':
             chain_id = line[19].strip()
-            start_residue = int(line[21:25].strip())
-            end_residue = int(line[33:37].strip())
-            for res in range(start_residue, end_residue + 1):
-                if chain_id in [h_chain, l_chain, ag_chain, ag_chain_2, ag_chain_3]:
+            start_res_num = int(line[21:25].strip())
+            start_ins_code = line[25].strip()
+            end_res_num = int(line[33:37].strip())
+            end_ins_code = line[37].strip()
+
+            if chain_id in helix_residues:
+                for res in generate_res_ids(start_res_num, start_ins_code, end_res_num, end_ins_code):
                     helix_residues[chain_id].add(res)
+
         elif record_type == 'SHEET':
             chain_id = line[21].strip()
-            start_residue = int(line[22:26].strip())
-            end_residue = int(line[33:37].strip())
-            for res in range(start_residue, end_residue + 1):
-                if chain_id in [h_chain, l_chain, ag_chain, ag_chain_2, ag_chain_3]:
+            start_res_num = int(line[22:26].strip())
+            start_ins_code = line[26].strip()
+            end_res_num = int(line[33:37].strip())
+            end_ins_code = line[37].strip()
+
+            if chain_id in strand_residues:
+                for res in generate_res_ids(start_res_num, start_ins_code, end_res_num, end_ins_code):
                     strand_residues[chain_id].add(res)
 
     return helix_residues, strand_residues
+
 
 def process_test_set(test_indices_file, pdb_codes_file, output_file):
     test_indices = np.load(test_indices_file)
