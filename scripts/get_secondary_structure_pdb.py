@@ -61,7 +61,8 @@ def classify_residues_for_chains(pdb_content, h_chain, l_chain, ag_chain, ag_cha
     heavy_chain_structure = []
     light_chain_structure = []
     ag_chain_structure = []
-    
+    prev_res_seq = 0
+
     for line in pdb_content.splitlines():
         record_type = line[:6].strip()
         if record_type == 'ATOM':
@@ -69,17 +70,18 @@ def classify_residues_for_chains(pdb_content, h_chain, l_chain, ag_chain, ag_cha
             if atom_name == 'CA': 
                 chain_id = line[21]
                 try:
-                    res_seq = int(line[22:26].strip())
-                    if chain_id == h_chain:
+                    res_seq = line[22:27].strip()
+                    if chain_id == h_chain and prev_res_seq != res_seq:
                         if res_seq in helix_residues[h_chain]:
                             heavy_chain_structure.append(0)
                         elif res_seq in strand_residues[h_chain]:
                             heavy_chain_structure.append(1)
                         else:
                             heavy_chain_structure.append(2)
+                    prev_res_seq = res_seq
                 except ValueError:
                     continue
-
+    prev_res_seq = 0
     for line in pdb_content.splitlines():
         record_type = line[:6].strip()
         if record_type == 'ATOM':
@@ -87,17 +89,19 @@ def classify_residues_for_chains(pdb_content, h_chain, l_chain, ag_chain, ag_cha
             if atom_name == 'CA': 
                 chain_id = line[21]
                 try:
-                    res_seq = int(line[22:26].strip())
-                    if chain_id == l_chain:
+                    res_seq = line[22:27].strip()
+                    print(res_seq)
+                    if chain_id == l_chain and prev_res_seq != res_seq:
                         if res_seq in helix_residues[l_chain]:
                             light_chain_structure.append(0)
                         elif res_seq in strand_residues[l_chain]:
                             light_chain_structure.append(1)
                         else:
                             light_chain_structure.append(2)
+                    prev_res_seq = res_seq
                 except ValueError:
                     continue
-
+    prev_res_seq = 0
     for line in pdb_content.splitlines():
         record_type = line[:6].strip()
         if record_type == 'ATOM':
@@ -105,18 +109,19 @@ def classify_residues_for_chains(pdb_content, h_chain, l_chain, ag_chain, ag_cha
             if atom_name == 'CA': 
                 chain_id = line[21]
                 try:
-                    res_seq = int(line[22:26].strip())
-                    if chain_id in [ag_chain, ag_chain_2, ag_chain_3]:
+                    res_seq = line[22:27].strip()
+                    if chain_id in [ag_chain, ag_chain_2, ag_chain_3] and prev_res_seq != res_seq:
                         if res_seq in helix_residues[chain_id]:
                             ag_chain_structure.append(0)
                         elif res_seq in strand_residues[chain_id]:
                             ag_chain_structure.append(1)
                         else:
                             ag_chain_structure.append(2)
+                    prev_res_seq = res_seq
                 except ValueError:
                     continue
 
-    print(len(heavy_chain_structure + light_chain_structure + ag_chain_structure))
+
     return heavy_chain_structure + light_chain_structure + ag_chain_structure
 
 def parse_pdb_content_for_ss(pdb_content, h_chain, l_chain, ag_chain, ag_chain_2, ag_chain_3):
@@ -166,7 +171,7 @@ def main():
     test_indices_file = DATA_DIR + 'test_indices.npy'
     pdb_codes_file = DATA_DIR + 'pdb_codes.npy'
     output_file = DATA_DIR + 'secondary_full.pkl'
-
+    
     process_test_set(test_indices_file, pdb_codes_file, output_file)
 
 if __name__ == '__main__':
