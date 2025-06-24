@@ -1,20 +1,20 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def boxplot_delta_e(delta_e, ind, ind_class='secondary'):
-    delta_e_flattened = []
+def boxplot_delta_graph(delta_graph, ind, ind_class='secondary'):
+    delta_graph_flattened = []
     ind_flattened = []
 
     # We flatten here
-    for delta_e_sublist, ind_sublist in zip(delta_e, ind):
-        if len(delta_e_sublist) == len(ind_sublist):
-            delta_e_flattened.extend(delta_e_sublist)
+    for delta_graph_sublist, ind_sublist in zip(delta_graph, ind):
+        if len(delta_graph_sublist) == len(ind_sublist):
+            delta_graph_flattened.extend(delta_graph_sublist)
             ind_flattened.extend(ind_sublist)
     
     if ind_class == 'cdr_status':
         ind_flattened = [1 if sec in [3, 4, 5] else 0 for sec in ind_flattened]  
 
-    data = pd.DataFrame({'Class': ind_flattened, 'Value': delta_e_flattened})
+    data = pd.DataFrame({'Class': ind_flattened, 'Value': delta_graph_flattened})
     xlabel = ''
 
     plt.figure()
@@ -36,33 +36,33 @@ def boxplot_delta_e(delta_e, ind, ind_class='secondary'):
         bin_counts = ds_bin.value_counts().sort_index()
         print(bin_counts)
 
-        grouped_delta_e = {label: [] for label in labels}
-        for value, bin_label in zip(delta_e_flattened, ds_bin):
+        grouped_delta_graph = {label: [] for label in labels}
+        for value, bin_label in zip(delta_graph_flattened, ds_bin):
             if pd.notna(bin_label): 
-                grouped_delta_e[bin_label].append(value)
-        plt.boxplot([grouped_delta_e[label] for label in labels], labels=labels, patch_artist=True, showfliers=False, showmeans=True)
+                grouped_delta_graph[bin_label].append(value)
+        plt.boxplot([grouped_delta_graph[label] for label in labels], labels=labels, patch_artist=True, showfliers=False, showmeans=True)
 
     plt.title('')  
     plt.xlabel(xlabel)
-    plt.ylabel('$\Delta$e')
+    plt.ylabel('$\Delta_{\mathrm{graph}}$')
     plt.show()
 
-def plot_consecutive_secondary(delta_e, secondary, max_M=12, secondary_type='helix'):
-    delta_e_flattened = []
+def plot_consecutive_secondary(delta_graph, secondary, max_M=12, secondary_type='helix'):
+    delta_graph_flattened = []
     secondary_flattened = []
 
     # We flatten here
-    for delta_e_sublist, secondary_sublist in zip(delta_e, secondary):
-        if len(delta_e_sublist) == len(secondary_sublist):
-            delta_e_flattened.extend(delta_e_sublist)
+    for delta_graph_sublist, secondary_sublist in zip(delta_graph, secondary):
+        if len(delta_graph_sublist) == len(secondary_sublist):
+            delta_graph_flattened.extend(delta_graph_sublist)
             secondary_flattened.extend(secondary_sublist)
     
     cdr_status = [1 if sec in [3, 4, 5] else 0 for sec in secondary_flattened]  
 
-    def count_sequences_and_average_delta_e(lst, cdr_status, delta_e_flattened, M, valid_values, processed_indices):
+    def count_sequences_and_average_delta_graph(lst, cdr_status, delta_graph_flattened, M, valid_values, processed_indices):
         counts = {'FR': 0, 'CDR': 0, 'Total': 0}
-        delta_e_sums = {'FR': 0, 'CDR': 0, 'Total': 0}
-        delta_e_counts = {'FR': 0, 'CDR': 0, 'Total': 0}
+        delta_graph_sums = {'FR': 0, 'CDR': 0, 'Total': 0}
+        delta_graph_counts = {'FR': 0, 'CDR': 0, 'Total': 0}
 
         i = 0
         while i <= len(lst) - M:
@@ -72,27 +72,27 @@ def plot_consecutive_secondary(delta_e, secondary, max_M=12, secondary_type='hel
                 counts[region_type] += 1
                 counts['Total'] += 1
 
-                delta_e_segment = delta_e_flattened[i:i+M]
-                delta_e_sums[region_type] += sum(delta_e_segment)
-                delta_e_sums['Total'] += sum(delta_e_segment)
-                delta_e_counts[region_type] += M
-                delta_e_counts['Total'] += M
+                delta_graph_segment = delta_graph_flattened[i:i+M]
+                delta_graph_sums[region_type] += sum(delta_graph_segment)
+                delta_graph_sums['Total'] += sum(delta_graph_segment)
+                delta_graph_counts[region_type] += M
+                delta_graph_counts['Total'] += M
 
                 processed_indices.update(range(i, i+M))
                 i += M
             else:
                 i += 1
 
-        avg_delta_e = {
-            'FR': delta_e_sums['FR'] / delta_e_counts['FR'] if delta_e_counts['FR'] > 0 else 0,
-            'CDR': delta_e_sums['CDR'] / delta_e_counts['CDR'] if delta_e_counts['CDR'] > 0 else 0,
-            'Total': delta_e_sums['Total'] / delta_e_counts['Total'] if delta_e_counts['Total'] > 0 else 0,
+        avg_delta_graph = {
+            'FR': delta_graph_sums['FR'] / delta_graph_counts['FR'] if delta_graph_counts['FR'] > 0 else 0,
+            'CDR': delta_graph_sums['CDR'] / delta_graph_counts['CDR'] if delta_graph_counts['CDR'] > 0 else 0,
+            'Total': delta_graph_sums['Total'] / delta_graph_counts['Total'] if delta_graph_counts['Total'] > 0 else 0,
         }
 
-        return counts, avg_delta_e
+        return counts, avg_delta_graph
 
     consec_counts = []
-    avg_delta_e_per_M = []
+    avg_delta_graph_per_M = []
     if secondary_type == 'helix':
         valid_values = {0, 3}
     elif secondary_type == 'strand':
@@ -102,14 +102,14 @@ def plot_consecutive_secondary(delta_e, secondary, max_M=12, secondary_type='hel
     processed_indices = set()
 
     for M in range(max_M, 0, -1):
-        counts, avg_delta_e = count_sequences_and_average_delta_e(
-            secondary_flattened, cdr_status, delta_e_flattened, M, valid_values, processed_indices
+        counts, avg_delta_graph = count_sequences_and_average_delta_graph(
+            secondary_flattened, cdr_status, delta_graph_flattened, M, valid_values, processed_indices
         )
         consec_counts.append(counts)
-        avg_delta_e_per_M.append(avg_delta_e)
+        avg_delta_graph_per_M.append(avg_delta_graph)
 
         print(f"{M} consecutive {secondary_type} - FR: {counts['FR']}, CDR: {counts['CDR']}, Total: {counts['Total']}")
-        print(f"Average delta_e for {M} consecutive {secondary_type} - FR: {avg_delta_e['FR']}, CDR: {avg_delta_e['CDR']}, Total: {avg_delta_e['Total']}")
+        print(f"Average delta_graph for {M} consecutive {secondary_type} - FR: {avg_delta_graph['FR']}, CDR: {avg_delta_graph['CDR']}, Total: {avg_delta_graph['Total']}")
 
     fr_counts = [counts['FR'] for counts in consec_counts[::-1]]
     cdr_counts = [counts['CDR'] for counts in consec_counts[::-1]]
@@ -123,13 +123,13 @@ def plot_consecutive_secondary(delta_e, secondary, max_M=12, secondary_type='hel
     plt.legend()
     plt.show()
 
-    fr_avg_delta_e = [avg['FR'] for avg in avg_delta_e_per_M[::-1]]
-    cdr_avg_delta_e = [avg['CDR'] for avg in avg_delta_e_per_M[::-1]]
-    total_avg_delta_e = [avg['Total'] for avg in avg_delta_e_per_M[::-1]]
+    fr_avg_delta_graph = [avg['FR'] for avg in avg_delta_graph_per_M[::-1]]
+    cdr_avg_delta_graph = [avg['CDR'] for avg in avg_delta_graph_per_M[::-1]]
+    total_avg_delta_graph = [avg['Total'] for avg in avg_delta_graph_per_M[::-1]]
 
-    plt.plot(range(1, max_M+1), fr_avg_delta_e, 'o-', label='FR', c='green')
-    plt.plot(range(1, max_M+1), cdr_avg_delta_e, 'o-', label='CDR', c='red')
-    plt.plot(range(1, max_M+1), total_avg_delta_e, 'o-', label='Total', c='blue')
+    plt.plot(range(1, max_M+1), fr_avg_delta_graph, 'o-', label='FR', c='green')
+    plt.plot(range(1, max_M+1), cdr_avg_delta_graph, 'o-', label='CDR', c='red')
+    plt.plot(range(1, max_M+1), total_avg_delta_graph, 'o-', label='Total', c='blue')
     plt.xlabel(f'Consecutive {secondary_type} (M)')
     plt.ylabel(r'Average $\Delta e$')
     plt.legend()

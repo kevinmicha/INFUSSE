@@ -27,29 +27,41 @@ def antibody_sequence_identity(seq1, seq2):
     
     return matches / len(valid_aa)
 
-def bootstrap_test(delta_e, labels, ind_class='secondary_ab', B=100000):
+def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, statistic='mean'):
     """
-    Performs pairwise bootstrap hypothesis tests to compare the means of multiple classes.
+    Performs pairwise bootstrap hypothesis tests to compare the means (or IQR) of multiple classes.
 
     Parameters
     ----------
-    delta_e: list of lists
+    delta_graph: list of lists
         Observed values for each amino acid residue across complexes.
     labels: list of lists
-        Labels for each residue, same shape as delta_e.
+        Labels for each residue, same shape as delta_graph.
     ind_class: str
-        Attribute for which the mean of delta_e is meant to be tested.
+        Attribute for which the mean of delta_graph is meant to be tested.
     B: int
         Number of bootstrap resamples (default 100000).
+    statistic: str
+        Statistic involved in the test (e.g., 'mean', 'iqr')
+
     """
-    delta_e_flat = []
+    
+    if statistic not in ('mean', 'iqr'):
+        raise ValueError("statistic must be 'mean' or 'iqr'")
+
+    def get_statistic(arr):
+        return (np.mean(arr) if statistic == 'mean' else np.subtract(*np.percentile(arr, [75, 25])))
+
+    stat_label = 'means' if statistic == 'mean' else 'IQRs'
+
+    delta_graph_flat = []
     labels_flat = []
 
-    for delta_e_sublist, label_sublist in zip(delta_e, labels):
-        if len(delta_e_sublist) == len(label_sublist):
-            delta_e_flat.extend(delta_e_sublist)
+    for delta_graph_sublist, label_sublist in zip(delta_graph, labels):
+        if len(delta_graph_sublist) == len(label_sublist):
+            delta_graph_flat.extend(delta_graph_sublist)
             labels_flat.extend(label_sublist)
-    delta_e_flat = np.array(delta_e_flat)
+    delta_graph_flat = np.array(delta_graph_flat)
     labels_flat = np.array(labels_flat)
 
     if ind_class == 'cdr_status':
@@ -70,10 +82,10 @@ def bootstrap_test(delta_e, labels, ind_class='secondary_ab', B=100000):
     unique_labels = np.unique(labels_flat)
     if ind_class in ['epitope', 'paratope']:
         unique_labels = np.array([0, 1])
-    means = []
 
+    means = []           
     for label in unique_labels:
-        means.append((label, np.mean(delta_e_flat[labels_flat == label])))
+        means.append((label, get_statistic(delta_graph_flat[labels_flat == label])))
 
     means.sort(key=lambda x: x[1], reverse=True)
     sorted_labels = [x[0] for x in means]
@@ -82,30 +94,35 @@ def bootstrap_test(delta_e, labels, ind_class='secondary_ab', B=100000):
         label_high = sorted_labels[i]
         label_low = sorted_labels[i + 1]
 
-        delta_e_high = delta_e_flat[labels_flat == label_high]
-        delta_e_low = delta_e_flat[labels_flat == label_low]
+        delta_graph_high = delta_graph_flat[labels_flat == label_high]
+        delta_graph_low = delta_graph_flat[labels_flat == label_low]
 
-        N_high = len(delta_e_high)
-        N_low = len(delta_e_low)
+        N_high = len(delta_graph_high)
+        N_low = len(delta_graph_low)
 
-        mu_high = np.mean(delta_e_high)
-        mu_low = np.mean(delta_e_low)
+        mu_high = get_statistic(delta_graph_high)
+        mu_low = get_statistic(delta_graph_low)
 
         t_obs = mu_high - mu_low
         t_b = []
 
         for _ in range(B):
-            delta_e_high_b = np.random.choice(delta_e_flat, size=N_high, replace=True)
-            delta_e_low_b = np.random.choice(delta_e_flat, size=N_low, replace=True)
-            t_b.append(np.mean(delta_e_high_b) - np.mean(delta_e_low_b))
+            delta_graph_high_b = np.random.choice(delta_graph_flat, size=N_high, replace=True)
+            delta_graph_low_b = np.random.choice(delta_graph_flat, size=N_low, replace=True)
+            t_b.append(get_statistic(delta_graph_high_b) -
+                        get_statistic(delta_graph_low_b))
 
         p_value = np.sum(np.array(t_b) >= t_obs) / B
 
         if p_value:
-            print(f'Difference of means between {label_names[label_high]} and {label_names[label_low]}: {t_obs} (p-value = {p_value}).')
+            print(f'Difference of {stat_label} between '
+                  f'{label_names[label_high]} and {label_names[label_low]}: '
+                  f'{t_obs} (p-value = {p_value}).')
         else:
-            print(f'Difference of means between {label_names[label_high]} and {label_names[label_low]}: {t_obs} (p-value < {1/B}).')
-
+            print(f'Difference of {stat_label} between '
+                  f'{label_names[label_high]} and {label_names[label_low]}: '
+                  f'{t_obs} (p-value < {1/B}).')
+            
 def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
     unp = False
     if any(b_fact_element > b_factor_thr or b_fact_element < 0 for b_fact_element in b_amino_acids):
@@ -118,10 +135,10 @@ def compute_average_b_factors(b_amino_acids, b_factor_thr=100):
 
     return (np.array(averages) - mean_) / std_dev_, unp
 
-def count_consecutive_secondary(lst, cdr_status, delta_e_flattened, M, valid_values, processed_indices):
+def count_consecutive_secondary(lst, cdr_status, delta_graph_flattened, M, valid_values, processed_indices):
     counts = {'FR': 0, 'CDR': 0, 'Total': 0}
-    delta_e_sums = {'FR': 0, 'CDR': 0, 'Total': 0}
-    delta_e_counts = {'FR': 0, 'CDR': 0, 'Total': 0}
+    delta_graph_sums = {'FR': 0, 'CDR': 0, 'Total': 0}
+    delta_graph_counts = {'FR': 0, 'CDR': 0, 'Total': 0}
 
     i = 0
     while i <= len(lst) - M:
@@ -131,12 +148,12 @@ def count_consecutive_secondary(lst, cdr_status, delta_e_flattened, M, valid_val
             counts[region_type] += 1
             counts['Total'] += 1
 
-            # Add corresponding delta_e values
-            delta_e_segment = delta_e_flattened[i:i+M]
-            delta_e_sums[region_type] += sum(delta_e_segment)
-            delta_e_sums['Total'] += sum(delta_e_segment)
-            delta_e_counts[region_type] += M
-            delta_e_counts['Total'] += M
+            # Add corresponding delta_graph values
+            delta_graph_segment = delta_graph_flattened[i:i+M]
+            delta_graph_sums[region_type] += sum(delta_graph_segment)
+            delta_graph_sums['Total'] += sum(delta_graph_segment)
+            delta_graph_counts[region_type] += M
+            delta_graph_counts['Total'] += M
 
             # Mark indices as processed
             processed_indices.update(range(i, i+M))
@@ -144,14 +161,14 @@ def count_consecutive_secondary(lst, cdr_status, delta_e_flattened, M, valid_val
         else:
             i += 1  # increment and check the next segment
 
-    # Average delta_e 
-    avg_delta_e = {
-        'FR': delta_e_sums['FR'] / delta_e_counts['FR'] if delta_e_counts['FR'] > 0 else 0,
-        'CDR': delta_e_sums['CDR'] / delta_e_counts['CDR'] if delta_e_counts['CDR'] > 0 else 0,
-        'Total': delta_e_sums['Total'] / delta_e_counts['Total'] if delta_e_counts['Total'] > 0 else 0,
+    # Average delta_graph 
+    avg_delta_graph = {
+        'FR': delta_graph_sums['FR'] / delta_graph_counts['FR'] if delta_graph_counts['FR'] > 0 else 0,
+        'CDR': delta_graph_sums['CDR'] / delta_graph_counts['CDR'] if delta_graph_counts['CDR'] > 0 else 0,
+        'Total': delta_graph_sums['Total'] / delta_graph_counts['Total'] if delta_graph_counts['Total'] > 0 else 0,
     }
 
-    return counts, avg_delta_e
+    return counts, avg_delta_graph
 
 def encode_line(line, amino_acids, secondary_structure):
     '''
@@ -464,13 +481,13 @@ def parse_pdb(file_path):
 
 def preprocess_interpretability(errors, errors_seq, secondary, ds, heavy, light, paratope_epitope):
     secondary_v = secondary.copy()
-    # Computing delta_e
+    # Computing delta_graph
     heavy_v = [] # Only variable region
     light_v = [] # Only variable region
     paratope_m = []
     epitope_m = []
-    delta_e = [[abs(e - es) for e, es in zip(e_list, s_list)] for e_list, s_list in zip(errors, errors_seq)]
-    delta_e_ag = get_antigen_only(delta_e, heavy, light)
+    delta_graph = [[es - e for e, es in zip(e_list, s_list)] for e_list, s_list in zip(errors, errors_seq)]
+    delta_graph_ag = get_antigen_only(delta_graph, heavy, light)
 
     for i, ds_dict in enumerate(ds):
         len_h = len([k for k in ds_dict if k.startswith('H')]) # HC variable region
@@ -479,7 +496,7 @@ def preprocess_interpretability(errors, errors_seq, secondary, ds, heavy, light,
         light_v.append(len_l)
         
         paratope_m.append(get_paratope_members(paratope_epitope[i], len_h, len_l))
-        epitope_m.append(get_epitope_members(paratope_epitope[i], delta_e_ag[i]))
+        epitope_m.append(get_epitope_members(paratope_epitope[i], delta_graph_ag[i]))
         ds[i] = list(ds_dict.values())
         secondary_v[i] = list(np.concatenate((secondary[i][:len_h], secondary[i][heavy[i]:heavy[i]+len_l])))
 
@@ -499,7 +516,7 @@ def preprocess_interpretability(errors, errors_seq, secondary, ds, heavy, light,
                 converted_secondary.append(sec_value)
         secondary_v[i] = converted_secondary
 
-    return delta_e, secondary_v, ds, heavy_v, light_v, epitope_m, paratope_m
+    return delta_graph, secondary_v, ds, heavy_v, light_v, epitope_m, paratope_m
 
 def separate_tokenised_chains(tensor):
     for i in range(1, len(tensor)):
