@@ -27,7 +27,7 @@ def antibody_sequence_identity(seq1, seq2):
     
     return matches / len(valid_aa)
 
-def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, statistic='mean'):
+def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, statistic='mean', compare_to_zero=False):         
     """
     Performs pairwise bootstrap hypothesis tests to compare the means (or IQR) of multiple classes.
 
@@ -43,6 +43,8 @@ def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, stat
         Number of bootstrap resamples (default 100000).
     statistic: str
         Statistic involved in the test (e.g., 'mean', 'iqr')
+    compare_to_zero: bool
+        If 'True' run comparison with zero mean.
 
     """
     
@@ -82,6 +84,30 @@ def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, stat
     unique_labels = np.unique(labels_flat)
     if ind_class in ['epitope', 'paratope']:
         unique_labels = np.array([0, 1])
+
+    if compare_to_zero:
+        for label in unique_labels:
+            sample = delta_graph_flat[labels_flat == label]
+            N      = len(sample)
+            stat_obs = get_statistic(sample)         
+
+            # We build the null distribution with mean zero, centre sample, resample, compute statistic...
+            centred = sample - stat_obs
+            t_b = []
+            for _ in range(B):
+                boot = np.random.choice(centred, size=N, replace=True)
+                t_b.append(get_statistic(boot))
+
+            t_b   = np.asarray(t_b)
+            p_val = (t_b >= stat_obs).mean() if stat_obs >= 0 else (t_b <= stat_obs).mean()
+
+            if p_val:
+                print(f'{stat_label[:-1].capitalize()} for {label_names[label]} vs 0: '
+                      f'{stat_obs} (p-value = {p_val}).')
+            else:
+                print(f'{stat_label[:-1].capitalize()} for {label_names[label]} vs 0: '
+                      f'{stat_obs} (p-value < {1/B}).')
+        return # stop here
 
     means = []           
     for label in unique_labels:
