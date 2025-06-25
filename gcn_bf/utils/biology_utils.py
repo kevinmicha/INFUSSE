@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import re
 import torch
 
@@ -70,8 +71,10 @@ def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, stat
         labels_flat = [1 if sec in [3, 4, 5] else 0 for sec in labels_flat]  
         label_names = ['FR', 'CDR']
     elif ind_class == 'entropy':
-        labels_flat = [0 if 0 <= ent <= 1 else 1 if 1 < ent <= 2 else 2 for ent in labels_flat]
-        label_names = ['0-1', '1-2', '>2']
+        ent_bits = np.array(labels_flat, dtype=float) / np.log(2)
+        ds_bin = pd.qcut(ent_bits, q=2, labels=[0, 1])
+        labels_flat = ds_bin.to_numpy(dtype=int, na_value=-1)
+        label_names = ['Low', 'High']
     elif ind_class == 'secondary_ab':
         label_names = ['Helix (FR)', 'Strand (FR)', 'Loop (FR)', 'Helix (CDR)', 'Strand (CDR)', 'Loop (CDR)']
     elif ind_class == 'secondary_ag':

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 def boxplot_delta_graph(delta_graph, ind, ind_class='secondary'):
@@ -29,19 +30,26 @@ def boxplot_delta_graph(delta_graph, ind, ind_class='secondary'):
         data[ind_class.title()+' membership'] = data['Class'].apply(lambda x: ind_class.title() if x == 1 else 'Non-'+ind_class)
         data.boxplot(column='Value', by=ind_class.title()+' membership', grid=False, showmeans=True, showfliers=False)
     elif ind_class == 'entropy':
-        bins = [0, 1, 2, float('inf')] # binning
-        labels = ['0-1', '1-2', '>2']
-        xlabel = 'Entropy bins'
-        ds_bin = pd.cut(ind_flattened, bins=bins, labels=labels, right=False)
+        ind_bits = np.array(ind_flattened) / np.log(2)
+        xlabel = 'Entropy (bits)'
+        labels_bin = ['Low', 'High']
+        ds_bin = pd.qcut(ind_bits, q=2, labels=labels_bin)
         bin_counts = ds_bin.value_counts().sort_index()
         print(bin_counts)
 
-        grouped_delta_graph = {label: [] for label in labels}
+        grouped_delta_graph = {lab: [] for lab in labels_bin}
         for value, bin_label in zip(delta_graph_flattened, ds_bin):
-            if pd.notna(bin_label): 
+            if pd.notna(bin_label):
                 grouped_delta_graph[bin_label].append(value)
-        plt.boxplot([grouped_delta_graph[label] for label in labels], labels=labels, patch_artist=True, showfliers=False, showmeans=True)
 
+        plt.boxplot(
+            [grouped_delta_graph[lab] for lab in labels_bin],
+            labels=labels_bin,
+            patch_artist=True,
+            showfliers=False,
+            showmeans=True
+    )
+    plt.xlabel(xlabel)
     plt.title('')  
     plt.xlabel(xlabel)
     plt.ylabel('$\Delta_{\mathrm{graph}}$')
