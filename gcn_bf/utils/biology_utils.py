@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 import pandas as pd
 import re
@@ -28,7 +29,7 @@ def antibody_sequence_identity(seq1, seq2):
     
     return matches / len(valid_aa)
 
-def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, statistic='mean', compare_to_zero=False):         
+def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, statistic='mean', compare_to_zero=False, all_pairwise=False):         
     """
     Performs pairwise bootstrap hypothesis tests to compare the means (or IQR) of multiple classes.
 
@@ -46,6 +47,8 @@ def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, stat
         Statistic involved in the test (e.g., 'mean', 'iqr')
     compare_to_zero: bool
         If 'True' run comparison with zero mean.
+    all_pairwise: bool
+        If 'True' compare every unordered pair of classes.
 
     """
     
@@ -112,36 +115,33 @@ def bootstrap_test(delta_graph, labels, ind_class='secondary_ab', B=100000, stat
                       f'{stat_obs} (p-value < {1/B}).')
         return # stop here
 
-    means = []           
+    means = []
     for label in unique_labels:
         means.append((label, get_statistic(delta_graph_flat[labels_flat == label])))
-
     means.sort(key=lambda x: x[1], reverse=True)
     sorted_labels = [x[0] for x in means]
 
-    for i in range(len(sorted_labels) - 1):
-        label_high = sorted_labels[i]
-        label_low = sorted_labels[i + 1]
+    if all_pairwise:
+        pair_list = itertools.combinations(sorted_labels, 2)
+    else:
+        pair_list = zip(sorted_labels[:-1], sorted_labels[1:])  # original
 
-        delta_graph_high = delta_graph_flat[labels_flat == label_high]
-        delta_graph_low = delta_graph_flat[labels_flat == label_low]
+    for label_high, label_low in pair_list:
+        delta_high = delta_graph_flat[labels_flat == label_high]
+        delta_low  = delta_graph_flat[labels_flat == label_low]
 
-        N_high = len(delta_graph_high)
-        N_low = len(delta_graph_low)
+        N_high, N_low = len(delta_high), len(delta_low)
+        mu_high = get_statistic(delta_high)
+        mu_low  = get_statistic(delta_low)
+        t_obs   = mu_high - mu_low
 
-        mu_high = get_statistic(delta_graph_high)
-        mu_low = get_statistic(delta_graph_low)
-
-        t_obs = mu_high - mu_low
         t_b = []
-
         for _ in range(B):
-            delta_graph_high_b = np.random.choice(delta_graph_flat, size=N_high, replace=True)
-            delta_graph_low_b = np.random.choice(delta_graph_flat, size=N_low, replace=True)
-            t_b.append(get_statistic(delta_graph_high_b) -
-                        get_statistic(delta_graph_low_b))
+            boot_high = np.random.choice(delta_graph_flat, N_high, True)
+            boot_low  = np.random.choice(delta_graph_flat, N_low,  True)
+            t_b.append(get_statistic(boot_high) - get_statistic(boot_low))
 
-        p_value = np.sum(np.array(t_b) >= t_obs) / B
+        p_value = (np.array(t_b) >= t_obs).mean()
 
         if p_value:
             print(f'Difference of {stat_label} between '
