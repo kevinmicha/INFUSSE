@@ -1,9 +1,9 @@
-# GCN-Bf
+# INFUSSE
 
 1. Create a conda environment, install all the dependencies, and then: 
 ```bash
-git clone https://github.com/kevinmicha/GCN-Bf
-cd GCN-Bf
+git clone https://github.com/kevinmicha/INFUSSE
+cd INFUSSE
 pip install .
 ```
 
