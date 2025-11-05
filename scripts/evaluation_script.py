@@ -5,10 +5,10 @@ import torch
 
 from torch_geometric.logging import log
 
-from gcn_bf.config import CHECKPOINTS_DIR
-from gcn_bf.dataset.dataset import GCNBfDataset
-from gcn_bf.model.model import GCN
-from gcn_bf.utils.torch_utils import get_dataloaders, load_transformer_weights, test
+from infusse.config import CHECKPOINTS_DIR
+from infusse.dataset.dataset import GCNBfDataset
+from infusse.model.model import GCN
+from infusse.utils.torch_utils import get_dataloaders, load_transformer_weights, test
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')

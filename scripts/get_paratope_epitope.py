@@ -8,8 +8,8 @@ from Bio.PDB.Residue import Residue
 from Bio.PDB.Chain import Chain
 from Bio.PDB.Structure import Structure
 
-from gcn_bf.config import DATA_DIR, STRUCTURE_DIR
-from gcn_bf.utils.biology_utils import get_first_digit
+from infusse.config import DATA_DIR, STRUCTURE_DIR
+from infusse.utils.biology_utils import get_first_digit
 
 def extract_paratope_epitope(pdb_file_path, pdb_codes):
     parser = PDBParser(QUIET=True)
@@ -118,6 +118,7 @@ def process_pdb_files():
     result = {}
 
     for pdb_file_path in file_list:
+       #pdb_file_path = '/Users/kevinmicha/Documents/all_structures/chothia_gcn/6wm9.pdb'
         pdb_id = os.path.basename(pdb_file_path).split('.')[0]
         print(pdb_id)
         if pdb_id not in pdb_codes:
@@ -133,7 +134,7 @@ def process_pdb_files():
             'epitope': list(epitope),
         }
 
-    torch.save(result, os.path.join(DATA_DIR, 'paratope_epitope.pt'))
+    #torch.save(result, os.path.join(DATA_DIR, 'paratope_epitope.pt'))
 
 if __name__ == '__main__':
     process_pdb_files()

@@ -7,10 +7,10 @@ import torch
 
 from torch_geometric.logging import log
 
-from gcn_bf.config import CHECKPOINTS_DIR, DATA_DIR
-from gcn_bf.dataset.dataset import GCNBfDataset
-from gcn_bf.model.model import GCN
-from gcn_bf.utils.torch_utils import count_parameters, get_dataloaders, load_lstm_weights, load_transformer_weights, test, train
+from infusse.config import CHECKPOINTS_DIR, DATA_DIR
+from infusse.dataset.dataset import GCNBfDataset
+from infusse.model.model import GCN
+from infusse.utils.torch_utils import count_parameters, get_dataloaders, load_lstm_weights, load_transformer_weights, test, train
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')
@@ -93,7 +93,7 @@ if args.seq_only:
     full_model.load_state_dict(model.state_dict())
 
     for name, param in full_model.named_parameters():
-        param.requires_grad = ('conv' in name) or ('sequence_linear' in name) or ('aa_linear' in name) or ('lm_linear' in name) or ('c_linear' in name)
+        param.requires_grad = ('conv' in name) or ('sequence_linear' in name) or ('aa_linear' in name) or ('lm_linear' in name) or ('c_linear' in name) 
         logging.info(f'{name} trainable? {param.requires_grad}') # just sanity check
 
     optimiser_full = torch.optim.AdamW(filter(lambda p: p.requires_grad, full_model.parameters()), lr=optimiser.param_groups[-1]['lr'])

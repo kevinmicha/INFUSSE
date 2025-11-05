@@ -7,11 +7,11 @@ import os
 
 from torch_geometric.logging import log
 
-from gcn_bf.config import CHECKPOINTS_DIR, DATA_DIR, STRUCTURE_DIR
-from gcn_bf.dataset.dataset import GCNBfDataset
-from gcn_bf.model.model import GCN
-from gcn_bf.utils.biology_utils import extract_list_of_residues, find_cdr_positions
-from gcn_bf.utils.torch_utils import count_parameters, get_dataloaders, plot_performance, load_transformer_weights, test, train
+from infusse.config import CHECKPOINTS_DIR, DATA_DIR, STRUCTURE_DIR
+from infusse.dataset.dataset import GCNBfDataset
+from infusse.model.model import GCN
+from infusse.utils.biology_utils import extract_list_of_residues, find_cdr_positions
+from infusse.utils.torch_utils import count_parameters, get_dataloaders, plot_performance, load_transformer_weights, test, train
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')
@@ -42,16 +42,26 @@ optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
 b_factor_per_residue = {}
 last = False
 all_errors = []
+y_test = []
+y_hat_test = []
 
-for j, loader in enumerate(test_loader):
+for j, loader in enumerate(dataset):
     path = os.path.join(STRUCTURE_DIR, loader.pdb[0]+'.pdb')
     if os.path.exists(path):  
         h_l, l_l, ca_index = extract_list_of_residues(path)
         cdr_positions = find_cdr_positions(h_l, l_l)
-        if j == len(test_loader) - 1:
+        #if j == len(test_loader) - 1:
+        if j == len(dataset) - 1:
             last = True
-        b_factor_per_residue, list_of_errors = plot_performance(model, loader, ca_index, cdr_positions, args.glob, b_factor_per_residue, h_l, l_l, last=last)
+        b_factor_per_residue, list_of_errors, y, pred = plot_performance(model, loader, ca_index, cdr_positions, args.glob, b_factor_per_residue, h_l, l_l, last=last)
         all_errors.append(list_of_errors)
+        y_test.append(y.cpu())
+        y_hat_test.append(pred.cpu())
 
-with open(DATA_DIR+'errors_with_antigen.pkl', 'wb') as f:
-    pickle.dump(all_errors, f)
+#with open(DATA_DIR+'y_test.pkl', 'wb') as f:
+#    pickle.dump(y_test, f)
+#with open(DATA_DIR+'y_hat_test.pkl', 'wb') as f:
+#    pickle.dump(y_hat_test, f)
+
+#with open(DATA_DIR+'errors_with_antigen.pkl', 'wb') as f:
+#    pickle.dump(all_errors, f)

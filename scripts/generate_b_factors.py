@@ -4,8 +4,8 @@ import os
 import numpy as np
 import torch
 
-from gcn_bf.config import ADJACENCIES_DIR, CM_DIR, DATA_DIR, STRUCTURE_DIR
-from gcn_bf.utils.biology_utils import compute_average_b_factors, get_first_digit, parse_pdb
+from infusse.config import ADJACENCIES_DIR, CM_DIR, DATA_DIR, STRUCTURE_DIR
+from infusse.utils.biology_utils import compute_average_b_factors, get_first_digit, parse_pdb
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--thr', type=int, default=100)

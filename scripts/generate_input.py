@@ -6,8 +6,8 @@ import scipy
 import torch
 import re
 
-from gcn_bf.config import DATA_DIR, STRUCTURE_DIR
-from gcn_bf.utils.biology_utils import encode_line, generate_one_hot_matrix, get_first_digit, get_tokenised_sequence
+from infusse.config import DATA_DIR, STRUCTURE_DIR
+from infusse.utils.biology_utils import encode_line, generate_one_hot_matrix, get_first_digit, get_tokenised_sequence
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lm', type=str, default='transformer')

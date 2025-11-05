@@ -7,9 +7,9 @@ import scipy
 import torch
 import re
 
-from gcn_bf.config import CHECKPOINTS_DIR, DATA_DIR, STRUCTURE_DIR
-from gcn_bf.utils.biology_utils import generate_secondary
-from gcn_bf.utils.torch_utils import get_dataloaders, load_transformer_weights
+from infusse.config import CHECKPOINTS_DIR, DATA_DIR, STRUCTURE_DIR
+from infusse.utils.biology_utils import generate_secondary
+from infusse.utils.torch_utils import get_dataloaders, load_transformer_weights
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')

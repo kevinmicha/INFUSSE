@@ -7,7 +7,7 @@ import torch
 
 from torch_geometric.utils.convert import from_scipy_sparse_matrix
 
-from gcn_bf.config import ADJACENCIES_DIR, CM_DIR, DATA_DIR
+from infusse.config import ADJACENCIES_DIR, CM_DIR, DATA_DIR
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graphs', type=str, default='gnm')
