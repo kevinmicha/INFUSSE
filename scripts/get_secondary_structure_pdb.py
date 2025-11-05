@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import pickle
 
-from gcn_bf.config import DATA_DIR, STRUCTURE_DIR
+from infusse.config import DATA_DIR, STRUCTURE_DIR
 
 def fetch_pdb_from_web(pdb_code):
     url = f'https://files.rcsb.org/download/{pdb_code}.pdb'

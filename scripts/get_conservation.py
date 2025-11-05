@@ -9,7 +9,7 @@ import torch
 
 from anarci import run_anarci
 from collections import defaultdict
-from gcn_bf.config import DATA_DIR
+from infusse.config import DATA_DIR
 
 sequences = torch.load(DATA_DIR+'sequences.pt')
 test_indices = np.load(DATA_DIR+'test_indices.npy')
