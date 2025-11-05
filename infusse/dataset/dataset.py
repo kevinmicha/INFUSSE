@@ -9,7 +9,7 @@ import torch
 from torch_geometric.data import Data
 from torch.utils.data import Dataset
 
-from  gcn_bf.utils.biology_utils import separate_tokenised_chains
+from  infusse.utils.biology_utils import separate_tokenised_chains
 
 class GCNBfDataset(Dataset):
     def __init__(self, edge_indices, edge_attributes, X, Y, device, pdb=None, C=None, lm_ab=None, lm_ag=None):

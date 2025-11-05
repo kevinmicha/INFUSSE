@@ -8,10 +8,10 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import random_split
 from transformers import BertModel, RoFormerModel
 
-from gcn_bf.dataset.dataset import GCNBfDataset
-from gcn_bf.utils.biology_utils import antibody_sequence_identity, sort_keys
+from infusse.dataset.dataset import GCNBfDataset
+from infusse.utils.biology_utils import antibody_sequence_identity, sort_keys
 
-from gcn_bf.config import DATA_DIR
+from infusse.config import DATA_DIR
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)

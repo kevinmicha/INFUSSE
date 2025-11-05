@@ -4,7 +4,7 @@ import pandas as pd
 import re
 import torch
 
-from gcn_bf.config import STRUCTURE_DIR
+from infusse.config import STRUCTURE_DIR
 from transformers import BertTokenizer, RoFormerTokenizer
 
 def antibody_sequence_identity(seq1, seq2):
