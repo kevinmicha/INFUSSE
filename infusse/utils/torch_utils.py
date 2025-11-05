@@ -76,7 +76,7 @@ def get_dataloaders(path, device, mode='test', train_size=0.95, lm_ab=None, lm_a
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     test_loader = DataLoader(test_dataset, batch_size=1)
 
-    return train_loader, test_loader, len(test_loader), DataLoader(dataset, batch_size=1)
+    return train_loader, test_loader, len(test_loader), dataset
 
 def load_lstm_weights(model, path):
     with h5py.File(path, 'r') as f:
