@@ -20,9 +20,9 @@ List of dependencies:
 * `transformers`
 
 2. Request three folders of data from the authors:
-- `adjacencies_sparse` (go to `gcn_bf/config.py` and update `ADJACENCIES_DIR` accordingly)
-- `contact_maps` (go to `gcn_bf/config.py` and update `CM_DIR` accordingly)
-- `chothia_ext` (go to `gcn_bf/config.py` and update `STRUCTURE_DIR` accordingly)
+- `adjacencies_sparse` (go to `infusse/config.py` and update `ADJACENCIES_DIR` accordingly)
+- `contact_maps` (go to `infusse/config.py` and update `CM_DIR` accordingly)
+- `chothia_ext` (go to `infusse/config.py` and update `STRUCTURE_DIR` accordingly)
 
 3. Go to `scripts` and run in the following order (graphs can be `gnm` or `bagpype`):
 - `python generate_b_factors.py [--thr THR]` 
